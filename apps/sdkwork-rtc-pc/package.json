@@ -28,7 +28,7 @@
     "@sdkwork/rtc-pc-core": "workspace:*",
     "@sdkwork/rtc-pc-rtc": "workspace:*",
     "@sdkwork/rtc-pc-shell": "workspace:*",
-    "@sdkwork/sdk-common": "^1.0.2",
+    "@sdkwork/sdk-common": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

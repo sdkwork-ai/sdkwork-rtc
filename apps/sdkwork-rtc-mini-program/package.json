@@ -12,7 +12,7 @@
     "@sdkwork/rtc-mp-host": "workspace:*",
     "@sdkwork/rtc-mp-rtc": "workspace:*",
     "@sdkwork/rtc-mp-shell": "workspace:*",
-    "@sdkwork/sdk-common": "^1.0.2",
+    "@sdkwork/sdk-common": "workspace:*",
     "@sdkwork/rtc-app-sdk": "workspace:*"
   },
   "devDependencies": {

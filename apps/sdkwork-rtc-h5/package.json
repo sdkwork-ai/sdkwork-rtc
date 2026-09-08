@@ -29,7 +29,7 @@
     "@sdkwork/rtc-h5-core": "workspace:*",
     "@sdkwork/rtc-h5-rtc": "workspace:*",
     "@sdkwork/rtc-h5-shell": "workspace:*",
-    "@sdkwork/sdk-common": "^1.0.2",
+    "@sdkwork/sdk-common": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

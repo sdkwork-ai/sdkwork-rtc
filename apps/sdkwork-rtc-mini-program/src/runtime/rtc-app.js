@@ -27,9 +27,15 @@ __export(runtimeBundle_exports, {
   configureRtcRuntime: () => configureRtcRuntime,
   createMediaSession: () => createMediaSession,
   getMediaSession: () => getMediaSession,
+  getMediaSessionRoomViewState: () => getMediaSessionRoomViewState,
   getRtcRuntimeEnvironment: () => getRtcRuntimeEnvironment,
   issueJoinCredential: () => issueJoinCredential,
-  listMediaSessions: () => listMediaSessions
+  joinMediaSession: () => joinMediaSession,
+  leaveMediaSession: () => leaveMediaSession,
+  listMediaSessions: () => listMediaSessions,
+  reportMediaPusherNetStatusChange: () => reportMediaPusherNetStatusChange,
+  reportMediaPusherStateChange: () => reportMediaPusherStateChange,
+  subscribeMediaSessionRoomViewState: () => subscribeMediaSessionRoomViewState
 });
 module.exports = __toCommonJS(runtimeBundle_exports);
 
@@ -164,6 +170,260 @@ function installWeixinFetch() {
   globalThis.fetch = wxFetch;
 }
 
+// ../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/runtime/random.js
+function getCrypto() {
+  const crypto = globalThis.crypto;
+  if (!(crypto == null ? void 0 : crypto.getRandomValues)) {
+    throw new Error("Web Crypto API is not available in this environment.");
+  }
+  return crypto;
+}
+function randomBytes(length) {
+  const bytes = new Uint8Array(length);
+  getCrypto().getRandomValues(bytes);
+  return bytes;
+}
+function randomUuid() {
+  var _a, _b;
+  const crypto = getCrypto();
+  if (typeof crypto.randomUUID === "function") {
+    try {
+      return crypto.randomUUID.call(crypto);
+    } catch {
+    }
+  }
+  const bytes = randomBytes(16);
+  bytes[6] = ((_a = bytes[6]) != null ? _a : 0) & 15 | 64;
+  bytes[8] = ((_b = bytes[8]) != null ? _b : 0) & 63 | 128;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// ../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/id.ts
+function uuid() {
+  return randomUuid();
+}
+
+// packages/sdkwork-rtc-mp-rtc/src/services/rtcAppServices.ts
+function createRtcCommandIdempotencyKey(scope) {
+  return `rtc-${scope}-${uuid()}`;
+}
+var MediaSessionService = class {
+  constructor(client) {
+    this.client = client;
+  }
+  async list(params) {
+    var _a;
+    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.list({
+      page: params == null ? void 0 : params.page,
+      pageSize: params == null ? void 0 : params.pageSize,
+      cursor: params == null ? void 0 : params.cursor,
+      q: params == null ? void 0 : params.search,
+      sort: params == null ? void 0 : params.sort
+    });
+    const nextCursor = (_a = response.pageInfo) == null ? void 0 : _a.nextCursor;
+    return {
+      items: response.items,
+      nextCursor: nextCursor && nextCursor.length > 0 ? nextCursor : void 0
+    };
+  }
+  async get(mediaSessionId) {
+    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.retrieve(mediaSessionId);
+    return response;
+  }
+  async create(body, options) {
+    var _a;
+    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.create(body, {
+      idempotencyKey: (_a = options == null ? void 0 : options.idempotencyKey) != null ? _a : createRtcCommandIdempotencyKey("media-session-create")
+    });
+    return response;
+  }
+};
+var ProviderProfileService = class {
+  constructor(client) {
+    this.client = client;
+  }
+  async listActive() {
+    var _a, _b;
+    const items = [];
+    let cursor;
+    for (let page = 0; page < 50; page += 1) {
+      const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.active.list({
+        pageSize: 200,
+        cursor
+      });
+      items.push(...response.items);
+      const next = (_b = (_a = response.pageInfo) == null ? void 0 : _a.nextCursor) == null ? void 0 : _b.trim();
+      if (!next) {
+        break;
+      }
+      cursor = next;
+    }
+    return items;
+  }
+  resolveDefaultProviderAppId(profiles) {
+    var _a, _b;
+    const preferred = (_a = profiles.find((profile) => profile.isDefault && profile.providerAppId)) != null ? _a : profiles.find((profile) => profile.providerAppId);
+    return (_b = preferred == null ? void 0 : preferred.providerAppId) != null ? _b : void 0;
+  }
+  resolveDefaultProviderKey(profiles) {
+    var _a, _b;
+    const preferred = (_a = profiles.find((profile) => profile.isDefault && profile.provider)) != null ? _a : profiles.find((profile) => profile.provider);
+    return (_b = preferred == null ? void 0 : preferred.provider) != null ? _b : void 0;
+  }
+};
+var ParticipantCredentialService = class {
+  constructor(client) {
+    this.client = client;
+  }
+  async issue(mediaSessionId, participantId, reason = "join", options) {
+    var _a;
+    const response = await this.client.rtcParticipantCredentials.rtc.mediaSessions.participantCredentials.issue(
+      mediaSessionId,
+      participantId,
+      { reason },
+      {
+        idempotencyKey: (_a = options == null ? void 0 : options.idempotencyKey) != null ? _a : createRtcCommandIdempotencyKey("participant-credential-issue")
+      }
+    );
+    const credential = response;
+    if (!credential.credential) {
+      throw new Error("RTC participant credential was not issued");
+    }
+    return credential.credential;
+  }
+};
+function createRtcAppServices(client) {
+  return {
+    mediaSessions: new MediaSessionService(client),
+    participantCredentials: new ParticipantCredentialService(client),
+    providerProfiles: new ProviderProfileService(client)
+  };
+}
+
+// packages/sdkwork-rtc-mp-rtc/src/services/rtcMediaRuntime.ts
+var VOLC_MINIAPP_SDK_PATH = "../lib/miniapp-rtc.min.js";
+var MISSING_SDK_MESSAGE = "VolcEngine mini program RTC SDK is not installed. Copy miniapp-rtc.min.js to src/lib/ and rebuild npm.";
+function loadVolcMiniappSdk() {
+  try {
+    return require(VOLC_MINIAPP_SDK_PATH);
+  } catch {
+    return null;
+  }
+}
+async function createMiniProgramRtcMediaRuntime() {
+  const sdk = loadVolcMiniappSdk();
+  let client = null;
+  let connected = false;
+  let pushUrl = "";
+  let remoteStreams = [];
+  let message = sdk ? "RTC media runtime is ready." : MISSING_SDK_MESSAGE;
+  const listeners = /* @__PURE__ */ new Set();
+  const getViewState = () => ({
+    connected,
+    pushUrl,
+    remoteStreams,
+    message
+  });
+  const notifyViewState = () => {
+    const state = getViewState();
+    listeners.forEach((listener) => listener(state));
+  };
+  const bindStreamEvents = () => {
+    if (!client || !sdk) {
+      return;
+    }
+    client.removeAllListeners();
+    client.on(sdk.EVENTS.STREAM_ADDED, (event) => {
+      var _a;
+      const payload = event;
+      const uid = String((_a = payload.uid) != null ? _a : "").trim();
+      if (!uid || !client) {
+        return;
+      }
+      const screen = Boolean(payload.screen);
+      void client.subscribe(uid, { screen }).then((url) => {
+        const stream = {
+          id: `${uid}-${screen ? 1 : 0}`,
+          uid,
+          url,
+          screen
+        };
+        remoteStreams = [...remoteStreams.filter((item) => item.id !== stream.id), stream];
+        message = `Subscribed remote stream ${stream.id}.`;
+        notifyViewState();
+      }).catch((error) => {
+        message = error instanceof Error ? `Failed to subscribe remote stream ${uid}: ${error.message}` : `Failed to subscribe remote stream ${uid}.`;
+        notifyViewState();
+      });
+    });
+  };
+  return {
+    async join(input) {
+      if (!sdk) {
+        connected = false;
+        pushUrl = "";
+        remoteStreams = [];
+        message = MISSING_SDK_MESSAGE;
+        const state = getViewState();
+        notifyViewState();
+        return state;
+      }
+      try {
+        if (client) {
+          await client.leave().catch(() => void 0);
+        }
+        client = new sdk.Client();
+        client.init(input.appId);
+        bindStreamEvents();
+        await client.join(input.token, input.roomId, input.participantId);
+        pushUrl = await client.publish();
+        connected = true;
+        remoteStreams = [];
+        message = `Joined room ${input.roomId} through VolcEngine mini program runtime.`;
+        const state = getViewState();
+        notifyViewState();
+        return state;
+      } catch (error) {
+        client = null;
+        connected = false;
+        pushUrl = "";
+        remoteStreams = [];
+        message = error instanceof Error ? error.message : "Failed to join media session.";
+        const state = getViewState();
+        notifyViewState();
+        return state;
+      }
+    },
+    async leave() {
+      if (client) {
+        await client.leave().catch(() => void 0);
+        client.removeAllListeners();
+        client = null;
+      }
+      connected = false;
+      pushUrl = "";
+      remoteStreams = [];
+      message = "Left media session.";
+      notifyViewState();
+    },
+    getViewState,
+    subscribeViewState(listener) {
+      listeners.add(listener);
+      listener(getViewState());
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    reportPusherStateChange(code, detailMessage) {
+      client == null ? void 0 : client.reportPusherStateChange(code, detailMessage);
+    },
+    reportPusherNetStatusChange(info) {
+      client == null ? void 0 : client.reportPusherNetStatusChange(info);
+    }
+  };
+}
+
 // packages/sdkwork-rtc-mp-core/src/session/appSession.ts
 var DEFAULT_APP_PERMISSION_SCOPE = "rtc.media_session.read rtc.media_session.write";
 
@@ -227,29 +487,7 @@ function listLegacyRtcMpSessionStorageKeys() {
   return LEGACY_RTC_MP_SESSION_STORAGE_KEYS;
 }
 
-// packages/sdkwork-rtc-mp-core/src/config/resolveAppSdkBaseUrl.ts
-var APP_API_PREFIX = "/app/v3/api";
-function stripAppApiSuffix(pathname) {
-  const normalized = pathname.replace(/\/+$/u, "");
-  if (!normalized || normalized === APP_API_PREFIX) {
-    return "";
-  }
-  if (normalized.endsWith(APP_API_PREFIX)) {
-    return normalized.slice(0, -APP_API_PREFIX.length) || "";
-  }
-  return normalized;
-}
-function resolveAppSdkBaseUrl(apiBaseUrl) {
-  try {
-    const parsed = new URL(apiBaseUrl);
-    const normalizedPath = stripAppApiSuffix(parsed.pathname);
-    return `${parsed.origin}${normalizedPath}`;
-  } catch {
-    return apiBaseUrl.replace(/\/app\/v3\/api\/?$/u, "");
-  }
-}
-
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/core/types.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/core/types.js
 var DEFAULT_RETRY_CONFIG = {
   maxRetries: 3,
   retryDelay: 1e3,
@@ -295,7 +533,7 @@ var MIME_TYPES = {
   TEXT_HTML: "text/html"
 };
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/auth/token-manager.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/auth/token-manager.js
 var DefaultAuthTokenManager = class {
   constructor(initialTokens, events) {
     __publicField(this, "tokens", {});
@@ -343,10 +581,10 @@ var DefaultAuthTokenManager = class {
     (_b = (_a = this.events) == null ? void 0 : _a.onTokenCleared) == null ? void 0 : _b.call(_a);
   }
   clearAuthToken() {
-    this.tokens.authToken = void 0;
+    delete this.tokens.authToken;
   }
   clearAccessToken() {
-    this.tokens.accessToken = void 0;
+    delete this.tokens.accessToken;
   }
   isExpired() {
     var _a, _b;
@@ -390,7 +628,7 @@ function buildAuthHeaders(authMode, apiKey, tokenManager) {
   return headers;
 }
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/utils/logger.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/logger.js
 var LOG_LEVELS = {
   debug: 0,
   info: 1,
@@ -485,7 +723,7 @@ function createLogger(config) {
   return new ConsoleLogger(config);
 }
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/utils/cache.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/cache.js
 var MemoryCacheStore = class {
   constructor(config = {}) {
     __publicField(this, "cache", /* @__PURE__ */ new Map());
@@ -544,22 +782,25 @@ function createCacheStore(config) {
   return new MemoryCacheStore(config);
 }
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/errors.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/errors.js
 var SdkError = class extends Error {
   constructor(message, code = "UNKNOWN", httpStatus, options) {
+    var _a, _b;
     super(message, { cause: options == null ? void 0 : options.cause });
     __publicField(this, "code");
     __publicField(this, "httpStatus");
     __publicField(this, "details");
     __publicField(this, "timestamp");
     __publicField(this, "traceId");
+    __publicField(this, "problem");
     __publicField(this, "metadata");
     this.name = this.constructor.name;
     this.code = code;
     this.httpStatus = httpStatus;
     this.details = options == null ? void 0 : options.details;
     this.timestamp = Date.now();
-    this.traceId = options == null ? void 0 : options.traceId;
+    this.traceId = (_b = options == null ? void 0 : options.traceId) != null ? _b : (_a = options == null ? void 0 : options.problem) == null ? void 0 : _a.traceId;
+    this.problem = options == null ? void 0 : options.problem;
     this.metadata = options == null ? void 0 : options.metadata;
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -590,35 +831,35 @@ var SdkError = class extends Error {
         return new BusinessError(message, result.code, result.data);
     }
   }
-  static fromHttpStatus(status, message) {
+  static fromHttpStatus(status, message, options) {
     const defaultMessage = message != null ? message : `HTTP Error ${status}`;
     switch (status) {
       case HTTP_STATUS.BAD_REQUEST:
       case HTTP_STATUS.UNPROCESSABLE_ENTITY:
-        return new ValidationError(defaultMessage);
+        return new ValidationError(defaultMessage, void 0, options);
       case HTTP_STATUS.UNAUTHORIZED:
-        return new AuthenticationError(defaultMessage);
+        return new AuthenticationError(defaultMessage, options);
       case HTTP_STATUS.FORBIDDEN:
-        return new ForbiddenError(defaultMessage);
+        return new ForbiddenError(defaultMessage, options);
       case HTTP_STATUS.NOT_FOUND:
-        return new NotFoundError(defaultMessage);
+        return new NotFoundError(defaultMessage, options);
       case HTTP_STATUS.METHOD_NOT_ALLOWED:
-        return new ValidationError(defaultMessage);
+        return new ValidationError(defaultMessage, void 0, options);
       case HTTP_STATUS.CONFLICT:
-        return new ConflictError(defaultMessage);
+        return new ConflictError(defaultMessage, options);
       case HTTP_STATUS.TOO_MANY_REQUESTS:
-        return new RateLimitError(defaultMessage);
+        return new RateLimitError(defaultMessage, void 0, options);
       case HTTP_STATUS.INTERNAL_SERVER_ERROR:
-        return new ServerError(defaultMessage, status);
+        return new ServerError(defaultMessage, status, options);
       case HTTP_STATUS.BAD_GATEWAY:
-        return new BadGatewayError(defaultMessage);
+        return new BadGatewayError(defaultMessage, options);
       case HTTP_STATUS.SERVICE_UNAVAILABLE:
-        return new ServiceUnavailableError(defaultMessage);
+        return new ServiceUnavailableError(defaultMessage, options);
       case HTTP_STATUS.GATEWAY_TIMEOUT:
-        return new GatewayTimeoutError(defaultMessage);
+        return new GatewayTimeoutError(defaultMessage, options);
       default:
-        if (status >= 500) return new ServerError(defaultMessage, status);
-        return new NetworkError(defaultMessage);
+        if (status >= 500) return new ServerError(defaultMessage, status, options);
+        return new NetworkError(defaultMessage, options);
     }
   }
   toJSON() {
@@ -630,6 +871,7 @@ var SdkError = class extends Error {
       details: this.details,
       timestamp: this.timestamp,
       traceId: this.traceId,
+      problem: this.problem,
       metadata: this.metadata
     };
   }
@@ -692,7 +934,7 @@ var NotFoundError = class extends SdkError {
 };
 var ValidationError = class extends SdkError {
   constructor(message = "Validation error", details, options) {
-    super(message, "VALIDATION_ERROR", HTTP_STATUS.BAD_REQUEST, {
+    super(message, "VALIDATION_ERROR", HTTP_STATUS.BAD_REQUEST, details === void 0 ? options : {
       ...options,
       details
     });
@@ -760,7 +1002,7 @@ function isRetryableError(error) {
   return error instanceof NetworkError || error instanceof TimeoutError || error instanceof ServerError || error instanceof RateLimitError || error instanceof BadGatewayError || error instanceof ServiceUnavailableError || error instanceof GatewayTimeoutError;
 }
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/utils/retry.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/retry.js
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -804,7 +1046,170 @@ async function withRetry(fn, config = {}) {
   throw lastError;
 }
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/utils/string.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/url.js
+var DEFAULT_BASE_URL_ENV_KEY = "SDKWORK_API_BASE_URL";
+var ENV_SUFFIXES = [
+  {
+    label: "dev",
+    suffix: "-dev"
+  },
+  {
+    label: "test",
+    suffix: "-test"
+  },
+  {
+    label: "staging",
+    suffix: "-staging"
+  }
+];
+function readRuntimeEnv(key) {
+  var _a, _b, _c, _d;
+  const viteValue = (_b = (_a = globalThis["import.meta"]) == null ? void 0 : _a.env) == null ? void 0 : _b[key];
+  if (typeof viteValue === "string" && viteValue.length > 0) return viteValue;
+  const processValue = (_d = (_c = globalThis["process"]) == null ? void 0 : _c.env) == null ? void 0 : _d[key];
+  if (typeof processValue === "string" && processValue.length > 0) return processValue;
+}
+function splitBaseUrls(value) {
+  return (typeof value === "string" ? value : value.join(",")).split(/[,;]/).map((item) => item.trim()).filter((item) => item.length > 0);
+}
+function getEnvironmentLabel(hostname) {
+  const host = (hostname || "").toLowerCase();
+  if (!host) return "development";
+  if (isLocalhost(host) || isIpAddress(host)) return "development";
+  for (const { label, suffix } of ENV_SUFFIXES) if (host.includes(suffix + ".")) return label;
+  return "production";
+}
+function getBrand(hostname) {
+  const host = (hostname || "").toLowerCase();
+  const parts = host.split(".").filter((p) => p.length > 0);
+  if (parts.length < 2) return host || "";
+  return parts.slice(-2).join(".");
+}
+function getApiHostForEnvironment(environmentLabel, brand) {
+  const env = environmentLabel.toLowerCase();
+  return `${env === "production" ? "api." : `api-${env}.`}${brand.toLowerCase().replace(/^\.+|\.+$/g, "")}`;
+}
+function resolveBaseUrl(options = {}) {
+  var _a, _b, _c, _d, _e, _f;
+  const candidates = options.baseUrls ? splitBaseUrls(options.baseUrls) : splitBaseUrls((_c = ((_a = options.readEnv) != null ? _a : readRuntimeEnv)((_b = options.envKey) != null ? _b : DEFAULT_BASE_URL_ENV_KEY)) != null ? _c : "");
+  const currentHost = (_d = options.hostname) != null ? _d : getCurrentHostname();
+  const currentProtocol = (_e = options.protocol) != null ? _e : getCurrentProtocol();
+  const expectedApiHost = getApiHostForEnvironment(getEnvironmentLabel(currentHost), getBrand(currentHost));
+  const normalizeCandidate = options.preservePath ? removeTrailingSlash : toBaseOrigin;
+  if (candidates.length === 0) {
+    if (currentHost && expectedApiHost) return {
+      url: `${currentProtocol}://${expectedApiHost}`,
+      reason: "current-host-match"
+    };
+    return {
+      url: "",
+      reason: "empty"
+    };
+  }
+  const sameProtocol = candidates.find((candidate) => {
+    const host = getHostname(candidate);
+    const protocol = getProtocol(candidate);
+    return host === expectedApiHost && protocol.toLowerCase() === currentProtocol.toLowerCase();
+  });
+  if (sameProtocol) return {
+    url: normalizeCandidate(sameProtocol),
+    reason: "current-host-match"
+  };
+  const anyProtocol = candidates.find((candidate) => getHostname(candidate) === expectedApiHost);
+  if (anyProtocol) return {
+    url: normalizeCandidate(anyProtocol),
+    reason: "current-host-match"
+  };
+  return {
+    url: normalizeCandidate((_f = candidates[0]) != null ? _f : ""),
+    reason: "fallback-first"
+  };
+}
+function toBaseOrigin(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.pathname = "";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.origin;
+  } catch {
+    return url.replace(/\/+$/, "");
+  }
+}
+function getCurrentHostname() {
+  if (typeof window !== "undefined" && window.location) return window.location.hostname;
+  return "";
+}
+function getCurrentProtocol() {
+  if (typeof window !== "undefined" && window.location) return window.location.protocol.replace(":", "");
+  return "https";
+}
+function isAbsolute(url) {
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(url);
+}
+function getProtocol(url) {
+  try {
+    return new URL(url).protocol.replace(":", "");
+  } catch {
+    return "";
+  }
+}
+function getHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+function isLocalhost(url) {
+  const hostname = hostnameOf(url).toLowerCase();
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname.startsWith("192.168.") || hostname.startsWith("10.") || hostname.startsWith("172.");
+}
+function isIpAddress(url) {
+  const hostname = hostnameOf(url);
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || /^\[?([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\]?$/.test(hostname);
+}
+function hostnameOf(url) {
+  if (isAbsolute(url)) return getHostname(url);
+  return url;
+}
+function removeTrailingSlash(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return parsed.href;
+  } catch {
+    return url.replace(/\/+$/, "") || "/";
+  }
+}
+
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/sdkwork-skills/node_modules/.pnpm/@sdkwork_utils@0.11.0/node_modules/@sdkwork/utils/dist/runtime/random.js
+function getCrypto2() {
+  const crypto = globalThis.crypto;
+  if (!(crypto == null ? void 0 : crypto.getRandomValues)) throw new Error("Web Crypto API is not available in this environment.");
+  return crypto;
+}
+function randomBytes2(length) {
+  const bytes = new Uint8Array(length);
+  getCrypto2().getRandomValues(bytes);
+  return bytes;
+}
+function randomUuid2() {
+  const crypto = getCrypto2();
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const bytes = randomBytes2(16);
+  bytes[6] = bytes[6] & 15 | 64;
+  bytes[8] = bytes[8] & 63 | 128;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/sdkwork-skills/node_modules/.pnpm/@sdkwork_utils@0.11.0/node_modules/@sdkwork/utils/dist/id.js
+function uuid2() {
+  return randomUuid2();
+}
+
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/string.js
 var StringUtils;
 (function(_StringUtils) {
   function isEmpty(value) {
@@ -815,21 +1220,21 @@ var StringUtils;
     return !isEmpty(value);
   }
   _StringUtils.isNotEmpty = isNotEmpty;
-  function isBlank(value) {
+  function isBlank2(value) {
     if (isEmpty(value)) return true;
     if (typeof value !== "string") return false;
     return value.trim().length === 0;
   }
-  _StringUtils.isBlank = isBlank;
+  _StringUtils.isBlank = isBlank2;
   function isNotBlank(value) {
-    return !isBlank(value);
+    return !isBlank2(value);
   }
   _StringUtils.isNotBlank = isNotBlank;
-  function trim(value) {
+  function trim2(value) {
     var _a;
     return (_a = value == null ? void 0 : value.trim()) != null ? _a : "";
   }
-  _StringUtils.trim = trim;
+  _StringUtils.trim = trim2;
   function trimStart(value) {
     var _a;
     return (_a = value == null ? void 0 : value.trimStart()) != null ? _a : "";
@@ -1142,13 +1547,10 @@ var StringUtils;
     return result;
   }
   _StringUtils.random = random;
-  function uuid() {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0;
-      return (c === "x" ? r : r & 3 | 8).toString(16);
-    });
+  function uuid$1() {
+    return uuid2();
   }
-  _StringUtils.uuid = uuid;
+  _StringUtils.uuid = uuid$1;
   function slugify(value) {
     var _a;
     return (_a = value == null ? void 0 : value.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "")) != null ? _a : "";
@@ -1634,10 +2036,10 @@ var StringUtils;
   _StringUtils.includesAny = includesAny;
 })(StringUtils || (StringUtils = {}));
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/utils/encoding.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/encoding.js
 var Encoding;
 (function(_Encoding) {
-  function base64Encode(input) {
+  function base64Encode2(input) {
     var _a, _b, _c;
     let bytes;
     if (typeof input === "string") bytes = new TextEncoder().encode(input);
@@ -1657,8 +2059,8 @@ var Encoding;
     }
     return result;
   }
-  _Encoding.base64Encode = base64Encode;
-  function base64Decode(input) {
+  _Encoding.base64Encode = base64Encode2;
+  function base64Decode2(input) {
     var _a, _b, _c, _d;
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     input = input.replace(/[^A-Za-z0-9+/]/g, "");
@@ -1677,18 +2079,18 @@ var Encoding;
     }
     return result;
   }
-  _Encoding.base64Decode = base64Decode;
-  function base64UrlEncode(input) {
-    return base64Encode(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  _Encoding.base64Decode = base64Decode2;
+  function base64UrlEncode2(input) {
+    return base64Encode2(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
   }
-  _Encoding.base64UrlEncode = base64UrlEncode;
-  function base64UrlDecode(input) {
+  _Encoding.base64UrlEncode = base64UrlEncode2;
+  function base64UrlDecode2(input) {
     input = input.replace(/-/g, "+").replace(/_/g, "/");
     const pad = input.length % 4;
     if (pad) input += "=".repeat(4 - pad);
-    return base64Decode(input);
+    return base64Decode2(input);
   }
-  _Encoding.base64UrlDecode = base64UrlDecode;
+  _Encoding.base64UrlDecode = base64UrlDecode2;
   function base64ToBytes(base64) {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -1711,17 +2113,17 @@ var Encoding;
     return new TextDecoder().decode(input);
   }
   _Encoding.utf8Decode = utf8Decode;
-  function hexEncode(input) {
+  function hexEncode2(input) {
     const bytes = typeof input === "string" ? utf8Encode(input) : input;
     return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
   }
-  _Encoding.hexEncode = hexEncode;
-  function hexDecode(input) {
+  _Encoding.hexEncode = hexEncode2;
+  function hexDecode2(input) {
     const bytes = new Uint8Array(input.length / 2);
     for (let i = 0; i < input.length; i += 2) bytes[i / 2] = parseInt(input.substr(i, 2), 16);
     return utf8Decode(bytes);
   }
-  _Encoding.hexDecode = hexDecode;
+  _Encoding.hexDecode = hexDecode2;
   function hexToBytes(hex) {
     const bytes = new Uint8Array(hex.length / 2);
     for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
@@ -2256,7 +2658,7 @@ Encoding.queryStringDecode;
 Encoding.slugify;
 Encoding.unslugify;
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/utils/date.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/utils/date.js
 var MILLISECONDS_IN_SECOND = 1e3;
 var MILLISECONDS_IN_MINUTE = 60 * MILLISECONDS_IN_SECOND;
 var MILLISECONDS_IN_HOUR = 60 * MILLISECONDS_IN_MINUTE;
@@ -2274,7 +2676,118 @@ var TIME_UNITS_IN_MS = {
   year: 365 * MILLISECONDS_IN_DAY
 };
 
-// ../../node_modules/.pnpm/@sdkwork+sdk-common@1.0.3/node_modules/@sdkwork/sdk-common/dist/http/base-client.js
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/http/stream-parser.js
+function extractStreamLines(buffer, flush = false) {
+  const lines = [];
+  let lineStart = 0;
+  let index = 0;
+  while (index < buffer.length) {
+    const character = buffer[index];
+    if (character === "\n") {
+      lines.push(buffer.slice(lineStart, index));
+      index += 1;
+      lineStart = index;
+      continue;
+    }
+    if (character === "\r") {
+      if (!flush && index === buffer.length - 1) break;
+      lines.push(buffer.slice(lineStart, index));
+      index += buffer[index + 1] === "\n" ? 2 : 1;
+      lineStart = index;
+      continue;
+    }
+    index += 1;
+  }
+  if (flush && lineStart < buffer.length) {
+    lines.push(buffer.slice(lineStart));
+    lineStart = buffer.length;
+  }
+  return {
+    lines,
+    remainder: buffer.slice(lineStart)
+  };
+}
+var ServerSentEventDataParser = class {
+  constructor() {
+    __publicField(this, "dataLines", []);
+    __publicField(this, "firstLine", true);
+  }
+  pushLine(rawLine) {
+    const line = this.firstLine && rawLine.charCodeAt(0) === 65279 ? rawLine.slice(1) : rawLine;
+    this.firstLine = false;
+    if (line === "") return this.dispatch();
+    if (line.startsWith(":")) return;
+    const separatorIndex = line.indexOf(":");
+    const field = separatorIndex === -1 ? line : line.slice(0, separatorIndex);
+    let value = separatorIndex === -1 ? "" : line.slice(separatorIndex + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+    if (field === "data") this.dataLines.push(value);
+  }
+  flush() {
+    return this.dispatch();
+  }
+  dispatch() {
+    if (this.dataLines.length === 0) return;
+    const data = this.dataLines.join("\n");
+    this.dataLines = [];
+    return data === "" || data === "[DONE]" ? void 0 : data;
+  }
+};
+function normalizeLegacyStreamLine(line) {
+  const trimmedLine = line.trim();
+  if (trimmedLine === "" || trimmedLine === "data: [DONE]") return;
+  if (trimmedLine.startsWith("data: ")) return trimmedLine.slice(6);
+  return trimmedLine;
+}
+
+// ../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/dist/http/base-client.js
+var SDKWORK_API_PREFIXES = [
+  "/app/v3/api",
+  "/backend/v3/api",
+  "/gateway/v3/api"
+];
+function dedupeSdkWorkApiPath(baseUrl, path) {
+  for (const prefix of SDKWORK_API_PREFIXES) if (baseUrl.endsWith(prefix) && path.startsWith(prefix)) {
+    const remainder = path.slice(prefix.length);
+    return remainder.startsWith("/") ? remainder : `/${remainder}`;
+  }
+  return path;
+}
+function isApiResultEnvelope(value) {
+  return value !== null && value !== void 0 && typeof value === "object" && !Array.isArray(value) && "code" in value && ("data" in value || "msg" in value || "message" in value);
+}
+var IDENTITY_PROJECTION_HEADER_NAMES = /* @__PURE__ */ new Set([
+  "x-sdkwork-tenant-id",
+  "x-sdkwork-app-id",
+  "x-sdkwork-user-id",
+  "x-sdkwork-organization-id",
+  "x-sdkwork-actor-id",
+  "x-sdkwork-actor-kind",
+  "x-sdkwork-session-id",
+  "x-sdkwork-environment",
+  "x-sdkwork-deployment-profile",
+  "x-sdkwork-deployment-mode",
+  "x-sdkwork-runtime-target",
+  "x-sdkwork-auth-level",
+  "x-sdkwork-data-scope",
+  "x-sdkwork-permission-scope",
+  "x-sdkwork-device-id",
+  "x-sdkwork-context-signature",
+  "x-sdkwork-operation-id",
+  "x-sdkwork-subject-tenant-id",
+  "x-sdkwork-subject-organization-id",
+  "x-sdkwork-subject-user-id",
+  "x-sdkwork-subject-timestamp",
+  "x-sdkwork-subject-signature",
+  "x-tenant-id",
+  "x-app-id",
+  "x-organization-id",
+  "x-platform",
+  "x-user-id"
+]);
+function stripIdentityProjectionHeaders(headers) {
+  for (const name of Object.keys(headers)) if (IDENTITY_PROJECTION_HEADER_NAMES.has(name.toLowerCase())) delete headers[name];
+}
 var BaseHttpClient = class {
   constructor(config) {
     __publicField(this, "config");
@@ -2282,10 +2795,6 @@ var BaseHttpClient = class {
     __publicField(this, "logger");
     __publicField(this, "cache");
     __publicField(this, "interceptors");
-    __publicField(this, "tenantId");
-    __publicField(this, "organizationId");
-    __publicField(this, "platform");
-    __publicField(this, "userId");
     var _a, _b, _c, _d;
     this.config = {
       baseUrl: config.baseUrl,
@@ -2320,13 +2829,14 @@ var BaseHttpClient = class {
       error: []
     };
     const authMode = this.determineAuthMode(config);
+    const tokenManager = (_d = config.tokenManager) != null ? _d : new DefaultAuthTokenManager({
+      ...config.accessToken !== void 0 ? { accessToken: config.accessToken } : {},
+      ...config.authToken !== void 0 ? { authToken: config.authToken } : {}
+    });
     this.authConfig = {
       authMode,
-      apiKey: config.apiKey,
-      tokenManager: (_d = config.tokenManager) != null ? _d : new DefaultAuthTokenManager({
-        accessToken: config.accessToken,
-        authToken: config.authToken
-      })
+      ...config.apiKey !== void 0 ? { apiKey: config.apiKey } : {},
+      tokenManager
     };
   }
   determineAuthMode(config) {
@@ -2356,7 +2866,7 @@ var BaseHttpClient = class {
     (_a = this.authConfig.tokenManager) == null ? void 0 : _a.setAuthToken(token);
     if (this.authConfig.authMode === "apikey") {
       this.authConfig.authMode = "dual-token";
-      this.authConfig.apiKey = void 0;
+      delete this.authConfig.apiKey;
     }
   }
   setAccessToken(token) {
@@ -2364,20 +2874,8 @@ var BaseHttpClient = class {
     (_a = this.authConfig.tokenManager) == null ? void 0 : _a.setAccessToken(token);
     if (this.authConfig.authMode === "apikey") {
       this.authConfig.authMode = "dual-token";
-      this.authConfig.apiKey = void 0;
+      delete this.authConfig.apiKey;
     }
-  }
-  setTenantId(tenantId) {
-    this.tenantId = tenantId;
-  }
-  setOrganizationId(organizationId) {
-    this.organizationId = organizationId;
-  }
-  setPlatform(platform) {
-    this.platform = platform;
-  }
-  setUserId(userId) {
-    this.userId = userId;
   }
   clearAuthToken() {
     var _a;
@@ -2415,11 +2913,7 @@ var BaseHttpClient = class {
       authMode: this.authConfig.authMode,
       apiKey: this.authConfig.apiKey,
       accessToken: (_a = this.authConfig.tokenManager) == null ? void 0 : _a.getAccessToken(),
-      authToken: (_b = this.authConfig.tokenManager) == null ? void 0 : _b.getAuthToken(),
-      tenantId: this.tenantId,
-      organizationId: this.organizationId,
-      platform: this.platform,
-      userId: this.userId
+      authToken: (_b = this.authConfig.tokenManager) == null ? void 0 : _b.getAuthToken()
     };
   }
   isAuthenticated() {
@@ -2427,7 +2921,8 @@ var BaseHttpClient = class {
     return (_b = (_a = this.authConfig.tokenManager) == null ? void 0 : _a.isValid()) != null ? _b : false;
   }
   buildBaseUrl(path, params) {
-    let url = `${this.config.baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+    const baseUrl = this.config.baseUrl.replace(/\/$/, "");
+    let url = `${baseUrl}${dedupeSdkWorkApiPath(baseUrl, path.startsWith("/") ? path : `/${path}`)}`;
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -2454,10 +2949,7 @@ var BaseHttpClient = class {
       const authHeaders = buildAuthHeaders(this.authConfig.authMode, this.authConfig.apiKey, this.authConfig.tokenManager);
       Object.assign(headers, authHeaders);
     }
-    if (this.tenantId) headers["X-Tenant-Id"] = this.tenantId;
-    if (this.organizationId) headers["X-Organization-Id"] = this.organizationId;
-    if (this.platform) headers["X-Platform"] = this.platform;
-    if (this.userId !== void 0) headers["X-User-Id"] = String(this.userId);
+    stripIdentityProjectionHeaders(headers);
     return headers;
   }
   serializeRequestBody(body, headers) {
@@ -2504,21 +2996,28 @@ var BaseHttpClient = class {
     for (const interceptor of this.interceptors.error) await interceptor(error, config);
   }
   async handleErrorResponse(response, config) {
+    var _a;
     let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    let problem;
     try {
       const result = await response.json();
-      errorMessage = result.msg || result.message || errorMessage;
+      errorMessage = String(result.detail || result.msg || result.message || result.title || errorMessage);
+      if (((_a = response.headers.get("content-type")) == null ? void 0 : _a.includes("application/problem+json")) || "status" in result && "code" in result && "traceId" in result) problem = result;
     } catch {
     }
-    const error = SdkError.fromHttpStatus(response.status, errorMessage);
+    const error = SdkError.fromHttpStatus(response.status, errorMessage, problem === void 0 ? void 0 : { problem });
     await this.applyErrorInterceptors(error, config);
     throw error;
   }
   async processResponse(response, config) {
     if (!response.ok) await this.handleErrorResponse(response, config);
+    if (response.status === HTTP_STATUS.NO_CONTENT) return;
     const contentType = response.headers.get("content-type");
     if (contentType == null ? void 0 : contentType.includes(MIME_TYPES.JSON)) {
-      const result = await response.json();
+      const body = await response.text();
+      if (!body.trim()) return;
+      const result = JSON.parse(body);
+      if (!isApiResultEnvelope(result)) return result;
       if (!SUCCESS_CODES.includes(result.code) && !SUCCESS_CODES.includes(String(result.code))) throw SdkError.fromApiResult(result, response.status);
       return result.data;
     }
@@ -2540,7 +3039,7 @@ var BaseHttpClient = class {
       return await fetch(url, {
         method: options.method,
         headers: options.headers,
-        body: options.body,
+        ...options.body !== void 0 ? { body: options.body } : {},
         signal: controller.signal
       });
     } catch (error) {
@@ -2566,9 +3065,9 @@ var BaseHttpClient = class {
     const response = await this.executeFetch(url, {
       method: processedConfig.method,
       headers,
-      body: serializedBody,
+      ...serializedBody !== void 0 ? { body: serializedBody } : {},
       timeout: (_a = processedConfig.timeout) != null ? _a : this.config.timeout,
-      signal: processedConfig.signal
+      ...processedConfig.signal !== void 0 ? { signal: processedConfig.signal } : {}
     });
     return this.processResponse(response, processedConfig);
   }
@@ -2594,7 +3093,7 @@ var BaseHttpClient = class {
       headers,
       body: formData,
       timeout: (_b = processedConfig.timeout) != null ? _b : this.config.timeout,
-      signal: processedConfig.signal
+      ...processedConfig.signal !== void 0 ? { signal: processedConfig.signal } : {}
     });
     return this.processResponse(response, processedConfig);
   }
@@ -2612,7 +3111,7 @@ var BaseHttpClient = class {
       method: "GET",
       headers,
       timeout: (_a = processedConfig.timeout) != null ? _a : this.config.timeout,
-      signal: processedConfig.signal
+      ...processedConfig.signal !== void 0 ? { signal: processedConfig.signal } : {}
     });
     if (!response.ok) await this.handleErrorResponse(response, processedConfig);
     return response.blob();
@@ -2622,49 +3121,540 @@ var BaseHttpClient = class {
     const config = {
       url: path,
       method: (_a = options == null ? void 0 : options.method) != null ? _a : "POST",
-      body: options == null ? void 0 : options.body,
-      headers: options == null ? void 0 : options.headers,
-      skipAuth: options == null ? void 0 : options.skipAuth
+      ...(options == null ? void 0 : options.body) !== void 0 ? { body: options.body } : {},
+      ...(options == null ? void 0 : options.headers) !== void 0 ? { headers: options.headers } : {},
+      ...(options == null ? void 0 : options.params) !== void 0 ? { params: options.params } : {},
+      ...(options == null ? void 0 : options.timeout) !== void 0 ? { timeout: options.timeout } : {},
+      ...(options == null ? void 0 : options.signal) !== void 0 ? { signal: options.signal } : {},
+      ...(options == null ? void 0 : options.skipAuth) !== void 0 ? { skipAuth: options.skipAuth } : {},
+      ...(options == null ? void 0 : options.metadata) !== void 0 ? { metadata: options.metadata } : {}
     };
     const processedConfig = await this.applyRequestInterceptors(config);
     const url = this.buildBaseUrl(processedConfig.url, processedConfig.params);
     const headers = this.buildHeaders(processedConfig);
+    const serializedBody = this.serializeRequestBody(processedConfig.body, headers);
     const response = await this.executeFetch(url, {
       method: processedConfig.method,
       headers,
-      body: processedConfig.body ? JSON.stringify(processedConfig.body) : void 0,
+      ...serializedBody !== void 0 ? { body: serializedBody } : {},
       timeout: (_b = processedConfig.timeout) != null ? _b : this.config.timeout,
-      signal: processedConfig.signal
+      ...processedConfig.signal !== void 0 ? { signal: processedConfig.signal } : {}
     });
     if (!response.ok) await this.handleErrorResponse(response, processedConfig);
     const reader = (_c = response.body) == null ? void 0 : _c.getReader();
     if (!reader) throw new NetworkError("No response body");
     const decoder = new TextDecoder();
     let buffer = "";
+    const eventParser = ((_d = response.headers.get("content-type")) == null ? void 0 : _d.toLowerCase().includes("text/event-stream")) === true ? new ServerSentEventDataParser() : void 0;
+    const parseLine = eventParser ? (line) => eventParser.pushLine(line) : normalizeLegacyStreamLine;
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = (_d = lines.pop()) != null ? _d : "";
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (trimmedLine === "" || trimmedLine === "data: [DONE]") continue;
-          if (trimmedLine.startsWith("data: ")) yield trimmedLine.slice(6);
-          else yield trimmedLine;
+        const extracted2 = extractStreamLines(buffer);
+        buffer = extracted2.remainder;
+        for (const line of extracted2.lines) {
+          const data = parseLine(line);
+          if (data !== void 0) yield data;
         }
       }
+      buffer += decoder.decode();
+      const extracted = extractStreamLines(buffer, true);
+      for (const line of extracted.lines) {
+        const data = parseLine(line);
+        if (data !== void 0) yield data;
+      }
+      const finalData = eventParser == null ? void 0 : eventParser.flush();
+      if (finalData !== void 0) yield finalData;
     } finally {
       reader.releaseLock();
     }
   }
 };
 
-// ../../sdks/sdkwork-rtc-app-sdk/sdkwork-rtc-app-sdk-typescript/src/index.ts
-var HttpClient = class _HttpClient extends BaseHttpClient {
+// packages/sdkwork-rtc-mp-core/src/config/resolveAppSdkBaseUrl.ts
+var APP_API_PREFIX = "/app/v3/api";
+var API_BASE_URL_ENV_KEY = "SDKWORK_API_BASE_URL";
+function stripAppApiSuffix(pathname) {
+  const normalized = pathname.replace(/\/+$/u, "");
+  if (!normalized || normalized === APP_API_PREFIX) {
+    return "";
+  }
+  if (normalized.endsWith(APP_API_PREFIX)) {
+    return normalized.slice(0, -APP_API_PREFIX.length) || "";
+  }
+  return normalized;
+}
+function normalizeApiBaseUrl(apiBaseUrl) {
+  try {
+    const parsed = new URL(apiBaseUrl);
+    const normalizedPath = stripAppApiSuffix(parsed.pathname);
+    return `${parsed.origin}${normalizedPath}`;
+  } catch {
+    return apiBaseUrl.replace(/\/app\/v3\/api\/?$/u, "");
+  }
+}
+function resolveAppSdkBaseUrl(apiBaseUrl) {
+  const [configured = ""] = splitBaseUrls(
+    apiBaseUrl != null ? apiBaseUrl : resolveBaseUrl({ envKey: API_BASE_URL_ENV_KEY }).url
+  );
+  return normalizeApiBaseUrl(configured);
+}
+
+// ../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/runtime/binary.js
+var textEncoder = new TextEncoder();
+function toUtf8(value) {
+  return textEncoder.encode(value);
+}
+var HEX = "0123456789abcdef";
+function hexEncode(bytes) {
+  let result = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    const byte = bytes[index];
+    if (byte === void 0) {
+      continue;
+    }
+    result += HEX[byte >> 4];
+    result += HEX[byte & 15];
+  }
+  return result;
+}
+
+// ../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/runtime/sha256.js
+var K = new Uint32Array([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var BLOCK_SIZE = 64;
+function rotr(value, shift) {
+  return value >>> shift | value << 32 - shift;
+}
+function readBlockU32(block, byteOffset) {
+  return block[byteOffset] << 24 | block[byteOffset + 1] << 16 | block[byteOffset + 2] << 8 | block[byteOffset + 3];
+}
+function sha256Block(state, block, offset) {
+  const words = new Uint32Array(64);
+  for (let index = 0; index < 16; index += 1) {
+    words[index] = readBlockU32(block, offset + index * 4);
+  }
+  for (let index = 16; index < 64; index += 1) {
+    const wordMinus15 = words[index - 15];
+    const wordMinus2 = words[index - 2];
+    const wordMinus16 = words[index - 16];
+    const wordMinus7 = words[index - 7];
+    const s0 = rotr(wordMinus15, 7) ^ rotr(wordMinus15, 18) ^ wordMinus15 >>> 3;
+    const s1 = rotr(wordMinus2, 17) ^ rotr(wordMinus2, 19) ^ wordMinus2 >>> 10;
+    words[index] = wordMinus16 + s0 + wordMinus7 + s1 >>> 0;
+  }
+  let a = state[0];
+  let b = state[1];
+  let c = state[2];
+  let d = state[3];
+  let e = state[4];
+  let f = state[5];
+  let g = state[6];
+  let h = state[7];
+  for (let index = 0; index < 64; index += 1) {
+    const s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+    const ch = e & f ^ ~e & g;
+    const temp1 = h + s1 + ch + K[index] + words[index] >>> 0;
+    const s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+    const maj = a & b ^ a & c ^ b & c;
+    const temp2 = s0 + maj >>> 0;
+    h = g;
+    g = f;
+    f = e;
+    e = d + temp1 >>> 0;
+    d = c;
+    c = b;
+    b = a;
+    a = temp1 + temp2 >>> 0;
+  }
+  state[0] = state[0] + a >>> 0;
+  state[1] = state[1] + b >>> 0;
+  state[2] = state[2] + c >>> 0;
+  state[3] = state[3] + d >>> 0;
+  state[4] = state[4] + e >>> 0;
+  state[5] = state[5] + f >>> 0;
+  state[6] = state[6] + g >>> 0;
+  state[7] = state[7] + h >>> 0;
+}
+function sha256Digest(value) {
+  const bitLength = value.length * 8;
+  const paddingLength = (BLOCK_SIZE - (value.length + 9) % BLOCK_SIZE) % BLOCK_SIZE + 9;
+  const padded = new Uint8Array(value.length + paddingLength);
+  padded.set(value);
+  padded[value.length] = 128;
+  const view = new DataView(padded.buffer);
+  view.setUint32(padded.length - 4, bitLength >>> 0, false);
+  view.setUint32(padded.length - 8, Math.floor(bitLength / 4294967296), false);
+  const state = new Uint32Array([
+    1779033703,
+    3144134277,
+    1013904242,
+    2773480762,
+    1359893119,
+    2600822924,
+    528734635,
+    1541459225
+  ]);
+  for (let offset = 0; offset < padded.length; offset += BLOCK_SIZE) {
+    sha256Block(state, padded, offset);
+  }
+  const digest = new Uint8Array(32);
+  const digestView = new DataView(digest.buffer);
+  for (let index = 0; index < state.length; index += 1) {
+    digestView.setUint32(index * 4, state[index], false);
+  }
+  return digest;
+}
+var SHA256_INITIAL_STATE = new Uint32Array([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+function sha256Hex(value) {
+  const bytes = typeof value === "string" ? toUtf8(value) : value;
+  return hexEncode(sha256Digest(bytes));
+}
+
+// ../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/crypto.js
+function sha256Hash(value) {
+  return sha256Hex(value);
+}
+
+// ../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/money.js
+var LOCALE_RULES = {
+  "en-us": {
+    prefix: true,
+    decimal: ".",
+    grouping: ",",
+    nameSpace: true,
+    compact: [
+      { exponent: 12, unit: "T" },
+      { exponent: 9, unit: "B" },
+      { exponent: 6, unit: "M" },
+      { exponent: 3, unit: "K" }
+    ]
+  },
+  "zh-cn": {
+    prefix: true,
+    decimal: ".",
+    grouping: ",",
+    nameSpace: false,
+    compact: [
+      { exponent: 12, unit: "\u5146" },
+      { exponent: 8, unit: "\u4EBF" },
+      { exponent: 4, unit: "\u4E07" }
+    ]
+  },
+  "ja-jp": {
+    prefix: true,
+    decimal: ".",
+    grouping: ",",
+    nameSpace: false,
+    compact: [
+      { exponent: 12, unit: "\u5146" },
+      { exponent: 8, unit: "\u5104" },
+      { exponent: 4, unit: "\u4E07" }
+    ]
+  },
+  "ko-kr": {
+    prefix: true,
+    decimal: ".",
+    grouping: ",",
+    nameSpace: false,
+    compact: [
+      { exponent: 12, unit: "\uC870" },
+      { exponent: 8, unit: "\uC5B5" },
+      { exponent: 4, unit: "\uB9CC" }
+    ]
+  },
+  "de-de": {
+    prefix: false,
+    decimal: ",",
+    grouping: ".",
+    nameSpace: true,
+    compact: [
+      { exponent: 12, unit: "Bio." },
+      { exponent: 9, unit: "Mrd." },
+      { exponent: 6, unit: "Mio." },
+      { exponent: 3, unit: "Tsd." }
+    ]
+  },
+  "fr-fr": {
+    prefix: false,
+    decimal: ",",
+    grouping: " ",
+    nameSpace: true,
+    compact: [
+      { exponent: 12, unit: "B" },
+      { exponent: 9, unit: "Md" },
+      { exponent: 6, unit: "M" },
+      { exponent: 3, unit: "k" }
+    ]
+  },
+  "it-it": {
+    prefix: false,
+    decimal: ",",
+    grouping: ".",
+    nameSpace: true,
+    compact: [
+      { exponent: 12, unit: "Bio." },
+      { exponent: 9, unit: "Mrd." },
+      { exponent: 6, unit: "M" },
+      { exponent: 3, unit: "k" }
+    ]
+  },
+  "es-es": {
+    prefix: false,
+    decimal: ",",
+    grouping: ".",
+    nameSpace: true,
+    compact: [
+      { exponent: 12, unit: "T" },
+      { exponent: 9, unit: "B" },
+      { exponent: 6, unit: "M" },
+      { exponent: 3, unit: "k" }
+    ]
+  },
+  "ru-ru": {
+    prefix: false,
+    decimal: ",",
+    grouping: " ",
+    nameSpace: true,
+    compact: [
+      { exponent: 12, unit: "\u0442\u0440\u043B\u043D" },
+      { exponent: 9, unit: "\u043C\u043B\u0440\u0434" },
+      { exponent: 6, unit: "\u043C\u043B\u043D" },
+      { exponent: 3, unit: "\u0442\u044B\u0441." }
+    ]
+  }
+};
+var CURRENCY_NAMES = {
+  "en-us": {
+    USD: "US dollars",
+    EUR: "euros",
+    GBP: "British pounds",
+    CNY: "Chinese yuan",
+    JPY: "Japanese yen",
+    KRW: "South Korean won",
+    HKD: "Hong Kong dollars",
+    TWD: "New Taiwan dollars",
+    CHF: "Swiss francs",
+    CAD: "Canadian dollars",
+    AUD: "Australian dollars",
+    INR: "Indian rupees",
+    BHD: "Bahraini dinars",
+    KWD: "Kuwaiti dinars"
+  },
+  "zh-cn": {
+    USD: "\u7F8E\u5143",
+    EUR: "\u6B27\u5143",
+    GBP: "\u82F1\u9563",
+    CNY: "\u4EBA\u6C11\u5E01",
+    JPY: "\u65E5\u5143",
+    KRW: "\u97E9\u5143",
+    HKD: "\u6E2F\u5E01",
+    TWD: "\u65B0\u53F0\u5E01",
+    CHF: "\u745E\u58EB\u6CD5\u90CE",
+    CAD: "\u52A0\u62FF\u5927\u5143",
+    AUD: "\u6FB3\u5927\u5229\u4E9A\u5143",
+    INR: "\u5370\u5EA6\u5362\u6BD4",
+    BHD: "\u5DF4\u6797\u7B2C\u7EB3\u5C14",
+    KWD: "\u79D1\u5A01\u7279\u7B2C\u7EB3\u5C14"
+  },
+  "de-de": {
+    USD: "US-Dollar",
+    EUR: "Euro",
+    GBP: "Britisches Pfund",
+    CNY: "Chinesischer Yuan",
+    JPY: "Japanischer Yen",
+    KRW: "S\xFCdkoreanischer Won",
+    HKD: "Hongkong-Dollar",
+    TWD: "Neuer Taiwan-Dollar",
+    CHF: "Schweizer Franken",
+    CAD: "Kanadischer Dollar",
+    AUD: "Australischer Dollar",
+    INR: "Indische Rupie",
+    BHD: "Bahrainischer Dinar",
+    KWD: "Kuwaitischer Dinar"
+  },
+  "fr-fr": {
+    USD: "dollar am\xE9ricain",
+    EUR: "euro",
+    GBP: "livre sterling",
+    CNY: "yuan chinois",
+    JPY: "yen japonais",
+    KRW: "won sud-cor\xE9en",
+    HKD: "dollar de Hong Kong",
+    TWD: "nouveau dollar de Ta\xEFwan",
+    CHF: "franc suisse",
+    CAD: "dollar canadien",
+    AUD: "dollar australien",
+    INR: "roupie indienne",
+    BHD: "dinar bahre\xEFni",
+    KWD: "dinar kowe\xEFtien"
+  },
+  "it-it": {
+    USD: "dollaro statunitense",
+    EUR: "euro",
+    GBP: "sterlina britannica",
+    CNY: "yuan cinese",
+    JPY: "yen giapponese",
+    KRW: "won sudcoreano",
+    HKD: "dollaro di Hong Kong",
+    TWD: "nuovo dollaro taiwanese",
+    CHF: "franco svizzero",
+    CAD: "dollaro canadese",
+    AUD: "dollaro australiano",
+    INR: "rupia indiana",
+    BHD: "dinaro bahreinita",
+    KWD: "dinaro kuwaitiano"
+  },
+  "es-es": {
+    USD: "d\xF3lar estadounidense",
+    EUR: "euro",
+    GBP: "libra esterlina",
+    CNY: "yuan chino",
+    JPY: "yen japon\xE9s",
+    KRW: "won surcoreano",
+    HKD: "d\xF3lar de Hong Kong",
+    TWD: "nuevo d\xF3lar taiwan\xE9s",
+    CHF: "franco suizo",
+    CAD: "d\xF3lar canadiense",
+    AUD: "d\xF3lar australiano",
+    INR: "rupia india",
+    BHD: "dinar bahrein\xED",
+    KWD: "dinar kuwait\xED"
+  },
+  "ja-jp": {
+    USD: "\u7C73\u30C9\u30EB",
+    EUR: "\u30E6\u30FC\u30ED",
+    GBP: "\u82F1\u30DD\u30F3\u30C9",
+    CNY: "\u4E2D\u56FD\u4EBA\u6C11\u5143",
+    JPY: "\u65E5\u672C\u5186",
+    KRW: "\u97D3\u56FD\u30A6\u30A9\u30F3",
+    HKD: "\u9999\u6E2F\u30C9\u30EB",
+    TWD: "\u53F0\u6E7E\u30C9\u30EB",
+    CHF: "\u30B9\u30A4\u30B9\u30D5\u30E9\u30F3",
+    CAD: "\u30AB\u30CA\u30C0\u30C9\u30EB",
+    AUD: "\u30AA\u30FC\u30B9\u30C8\u30E9\u30EA\u30A2\u30C9\u30EB",
+    INR: "\u30A4\u30F3\u30C9\u30EB\u30D4\u30FC",
+    BHD: "\u30D0\u30FC\u30EC\u30FC\u30F3\u30C7\u30A3\u30FC\u30CA\u30FC\u30EB",
+    KWD: "\u30AF\u30A6\u30A7\u30FC\u30C8\u30C7\u30A3\u30CA\u30FC\u30EB"
+  },
+  "ko-kr": {
+    USD: "\uBBF8\uAD6D \uB2EC\uB7EC",
+    EUR: "\uC720\uB85C",
+    GBP: "\uC601\uAD6D \uD30C\uC6B4\uB4DC",
+    CNY: "\uC911\uAD6D \uC704\uC548",
+    JPY: "\uC77C\uBCF8 \uC5D4",
+    KRW: "\uB300\uD55C\uBBFC\uAD6D \uC6D0",
+    HKD: "\uD64D\uCF69 \uB2EC\uB7EC",
+    TWD: "\uC2E0 \uB300\uB9CC \uB2EC\uB7EC",
+    CHF: "\uC2A4\uC704\uC2A4 \uD504\uB791",
+    CAD: "\uCE90\uB098\uB2E4 \uB2EC\uB7EC",
+    AUD: "\uD638\uC8FC \uB2EC\uB7EC",
+    INR: "\uC778\uB3C4 \uB8E8\uD53C",
+    BHD: "\uBC14\uB808\uC778 \uB514\uB098\uB974",
+    KWD: "\uCFE0\uC6E8\uC774\uD2B8 \uB514\uB098\uB974"
+  },
+  "ru-ru": {
+    USD: "\u0434\u043E\u043B\u043B\u0430\u0440 \u0421\u0428\u0410",
+    EUR: "\u0435\u0432\u0440\u043E",
+    GBP: "\u0431\u0440\u0438\u0442\u0430\u043D\u0441\u043A\u0438\u0439 \u0444\u0443\u043D\u0442",
+    CNY: "\u043A\u0438\u0442\u0430\u0439\u0441\u043A\u0438\u0439 \u044E\u0430\u043D\u044C",
+    JPY: "\u044F\u043F\u043E\u043D\u0441\u043A\u0430\u044F \u0438\u0435\u043D\u0430",
+    KRW: "\u044E\u0436\u043D\u043E\u043A\u043E\u0440\u0435\u0439\u0441\u043A\u0430\u044F \u0432\u043E\u043D\u0430",
+    HKD: "\u0433\u043E\u043D\u043A\u043E\u043D\u0433\u0441\u043A\u0438\u0439 \u0434\u043E\u043B\u043B\u0430\u0440",
+    TWD: "\u043D\u043E\u0432\u044B\u0439 \u0442\u0430\u0439\u0432\u0430\u043D\u044C\u0441\u043A\u0438\u0439 \u0434\u043E\u043B\u043B\u0430\u0440",
+    CHF: "\u0448\u0432\u0435\u0439\u0446\u0430\u0440\u0441\u043A\u0438\u0439 \u0444\u0440\u0430\u043D\u043A",
+    CAD: "\u043A\u0430\u043D\u0430\u0434\u0441\u043A\u0438\u0439 \u0434\u043E\u043B\u043B\u0430\u0440",
+    AUD: "\u0430\u0432\u0441\u0442\u0440\u0430\u043B\u0438\u0439\u0441\u043A\u0438\u0439 \u0434\u043E\u043B\u043B\u0430\u0440",
+    INR: "\u0438\u043D\u0434\u0438\u0439\u0441\u043A\u0430\u044F \u0440\u0443\u043F\u0438\u044F",
+    BHD: "\u0431\u0430\u0445\u0440\u0435\u0439\u043D\u0441\u043A\u0438\u0439 \u0434\u0438\u043D\u0430\u0440",
+    KWD: "\u043A\u0443\u0432\u0435\u0439\u0442\u0441\u043A\u0438\u0439 \u0434\u0438\u043D\u0430\u0440"
+  }
+};
+var DEFAULT_LOCALE_RULES = LOCALE_RULES["en-us"];
+var DEFAULT_CURRENCY_NAMES = CURRENCY_NAMES["en-us"];
+
+// ../../sdks/sdkwork-rtc-app-sdk/sdkwork-rtc-app-sdk-typescript/generated/server-openapi/dist/index.js
+var _HttpClient = class _HttpClient2 extends BaseHttpClient {
   constructor(config) {
     super(config);
+  }
+  static normalizeCredential(value) {
+    return typeof value === "string" && value.trim().length > 0 ? value.trim() : void 0;
   }
   getInternalAuthConfig() {
     const self = this;
@@ -2686,27 +3676,136 @@ var HttpClient = class _HttpClient extends BaseHttpClient {
     }
     return Object.keys(mergedHeaders).length > 0 ? mergedHeaders : void 0;
   }
+  async applySdkworkRequestBodyFingerprint(headers, body) {
+    if (!_HttpClient2.SDKWORK_V3_REQUEST_FINGERPRINTS || body == null || !this.hasNonEmptyHeader(headers, "Idempotency-Key") || this.hasNonEmptyHeader(headers, "X-Content-SHA256") || this.hasNonEmptyHeader(headers, "X-Idempotency-Fingerprint")) {
+      return headers;
+    }
+    const fingerprint = await this.createSdkworkRequestBodyFingerprint(body);
+    if (!fingerprint) {
+      return headers;
+    }
+    const normalizedFingerprintHeader = fingerprint.header.toLowerCase();
+    const preparedHeaders = Object.fromEntries(
+      Object.entries(headers != null ? headers : {}).filter(
+        ([headerName]) => headerName.toLowerCase() !== normalizedFingerprintHeader
+      )
+    );
+    return {
+      ...preparedHeaders,
+      [fingerprint.header]: fingerprint.value
+    };
+  }
+  hasNonEmptyHeader(headers, name) {
+    const normalizedName = name.toLowerCase();
+    return Object.entries(headers != null ? headers : {}).some(
+      ([headerName, value]) => headerName.toLowerCase() === normalizedName && value.trim().length > 0
+    );
+  }
+  async createSdkworkRequestBodyFingerprint(body) {
+    if (typeof FormData !== "undefined" && body instanceof FormData) {
+      const canonicalForm = await this.serializeSdkworkFormData(body);
+      return {
+        header: "X-Idempotency-Fingerprint",
+        value: await this.sha256Hex(new TextEncoder().encode(canonicalForm))
+      };
+    }
+    const bytes = await this.serializeSdkworkRequestBodyBytes(body);
+    if (!bytes) {
+      return void 0;
+    }
+    return {
+      header: "X-Content-SHA256",
+      value: await this.sha256Hex(bytes)
+    };
+  }
+  async serializeSdkworkRequestBodyBytes(body) {
+    if (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) {
+      return new TextEncoder().encode(body.toString());
+    }
+    if (typeof Blob !== "undefined" && body instanceof Blob) {
+      return new Uint8Array(await body.arrayBuffer());
+    }
+    if (typeof ArrayBuffer !== "undefined" && body instanceof ArrayBuffer) {
+      return new Uint8Array(body.slice(0));
+    }
+    if (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView(body)) {
+      return new Uint8Array(new Uint8Array(body.buffer, body.byteOffset, body.byteLength));
+    }
+    if (typeof body === "string") {
+      return new TextEncoder().encode(body);
+    }
+    const serialized = JSON.stringify(body);
+    return serialized === void 0 ? void 0 : new TextEncoder().encode(serialized);
+  }
+  async serializeSdkworkFormData(body) {
+    const parts = [];
+    for (const [name, value] of body.entries()) {
+      if (typeof value === "string") {
+        parts.push({ kind: "field", name, value });
+        continue;
+      }
+      const bytes = new Uint8Array(await value.arrayBuffer());
+      parts.push({
+        kind: "file",
+        name,
+        fileName: "name" in value ? String(value.name) : "",
+        contentType: value.type,
+        size: value.size,
+        contentSha256: await this.sha256Hex(bytes)
+      });
+    }
+    return JSON.stringify(parts);
+  }
+  async sha256Hex(bytes) {
+    return sha256Hash(bytes);
+  }
   buildHeaders(config, skipAuth = false) {
     const headers = super.buildHeaders(config, skipAuth);
+    if (config == null ? void 0 : config.accessTokenOnly) {
+      this.stripCredentialHeaders(headers, true);
+      return headers;
+    }
     if (!skipAuth && !(config == null ? void 0 : config.skipAuth)) {
       return headers;
     }
+    this.stripCredentialHeaders(headers, false);
+    return headers;
+  }
+  stripCredentialHeaders(headers, preserveAccessToken) {
     [
-      _HttpClient.ACCESS_TOKEN_HEADER,
+      ...preserveAccessToken ? [] : [_HttpClient2.ACCESS_TOKEN_HEADER, "Access-Token"],
       "Authorization",
-      "Access-Token",
       ["X", "API", "Key"].join("-"),
       "X-Tenant-Id",
+      "X-App-Id",
       "X-Organization-Id",
       "X-Platform",
       "X-User-Id",
       "X-Sdkwork-Tenant-Id",
+      "X-Sdkwork-App-Id",
+      "X-Sdkwork-User-Id",
       "X-Sdkwork-Organization-Id",
-      "X-Sdkwork-User-Id"
+      "X-Sdkwork-Actor-Id",
+      "X-Sdkwork-Actor-Kind",
+      "X-Sdkwork-Session-Id",
+      "X-Sdkwork-Environment",
+      "X-Sdkwork-Deployment-Profile",
+      "X-Sdkwork-Deployment-Mode",
+      "X-Sdkwork-Runtime-Target",
+      "X-Sdkwork-Auth-Level",
+      "X-Sdkwork-Data-Scope",
+      "X-Sdkwork-Permission-Scope",
+      "X-Sdkwork-Device-Id",
+      "X-Sdkwork-Context-Signature",
+      "X-Sdkwork-Operation-Id",
+      "X-Sdkwork-Subject-Tenant-Id",
+      "X-Sdkwork-Subject-Organization-Id",
+      "X-Sdkwork-Subject-User-Id",
+      "X-Sdkwork-Subject-Timestamp",
+      "X-Sdkwork-Subject-Signature"
     ].forEach((key) => {
       delete headers[key];
     });
-    return headers;
   }
   buildRequestBody(body, contentType) {
     if (body == null) {
@@ -2831,60 +3930,138 @@ var HttpClient = class _HttpClient extends BaseHttpClient {
   }
   setAccessToken(token) {
     const headers = this.getInternalHeaders();
-    headers[_HttpClient.ACCESS_TOKEN_HEADER] = token;
+    headers[_HttpClient2.ACCESS_TOKEN_HEADER] = token;
     super.setAccessToken(token);
   }
   setTokenManager(manager) {
-    const baseProto = Object.getPrototypeOf(_HttpClient.prototype);
+    const baseProto = Object.getPrototypeOf(_HttpClient2.prototype);
     if (typeof baseProto.setTokenManager === "function") {
       baseProto.setTokenManager.call(this, manager);
       return;
     }
     this.getInternalAuthConfig().tokenManager = manager;
   }
-  applySdkworkAuthHeaders(headers) {
+  applyAccessTokenOnlyHeaders(headers) {
     var _a;
     const authConfig = this.getInternalAuthConfig();
     const tokenManager = authConfig.tokenManager;
     const accessToken = (_a = tokenManager == null ? void 0 : tokenManager.getAccessToken) == null ? void 0 : _a.call(tokenManager);
-    if (!accessToken) {
+    if (typeof accessToken !== "string" || accessToken.trim().length === 0) {
+      throw new Error(
+        "access-token-only request requires Access-Token before request dispatch"
+      );
+    }
+    const result = { ...headers != null ? headers : {} };
+    this.stripCredentialHeaders(result, false);
+    result[_HttpClient2.ACCESS_TOKEN_HEADER] = accessToken.trim();
+    return result;
+  }
+  applySdkworkAuthHeaders(headers) {
+    var _a, _b;
+    const authConfig = this.getInternalAuthConfig();
+    const tokenManager = authConfig.tokenManager;
+    const accessToken = _HttpClient2.normalizeCredential((_a = tokenManager == null ? void 0 : tokenManager.getAccessToken) == null ? void 0 : _a.call(tokenManager));
+    const authToken = _HttpClient2.normalizeCredential((_b = tokenManager == null ? void 0 : tokenManager.getAuthToken) == null ? void 0 : _b.call(tokenManager));
+    if (_HttpClient2.REQUIRES_SDKWORK_ACCESS_TOKEN && (typeof accessToken !== "string" || accessToken.trim().length === 0)) {
+      throw new Error("non-open-api request requires Access-Token before request dispatch");
+    }
+    if (!accessToken && !authToken) {
       return headers;
     }
-    return {
-      ...headers != null ? headers : {},
-      [_HttpClient.ACCESS_TOKEN_HEADER]: accessToken
-    };
+    const authHeaders = buildAuthHeaders("dual-token", void 0, tokenManager);
+    return Object.keys(authHeaders).length > 0 ? { ...headers != null ? headers : {}, ...authHeaders } : headers;
+  }
+  unwrapSdkworkV3Payload(payload, unwrapKind = "data") {
+    if (!_HttpClient2.SDKWORK_V3_UNWRAP || payload == null || typeof payload !== "object") {
+      return payload;
+    }
+    const record = payload;
+    if (record.code !== 0 || !("data" in record)) {
+      return this.unwrapSdkworkV3Data(record, unwrapKind);
+    }
+    const data = record.data;
+    if (!data || typeof data !== "object") {
+      return data;
+    }
+    return this.unwrapSdkworkV3Data(data, unwrapKind);
+  }
+  unwrapSdkworkV3Data(data, unwrapKind) {
+    if (unwrapKind === "void") {
+      return void 0;
+    }
+    if (unwrapKind === "item" && "item" in data) {
+      return data.item;
+    }
+    return data;
   }
   async request(path, options = {}) {
     const execute = this.execute;
     if (typeof execute !== "function") {
       throw new Error("BaseHttpClient execute method is not available");
     }
-    const { body, headers, contentType, method = "GET", skipAuth, ...rest } = options;
-    const requestHeaders = skipAuth ? headers : this.applySdkworkAuthHeaders(headers);
-    return withRetry(() => execute.call(this, {
-      url: path,
-      method,
-      ...rest,
+    const {
+      body,
+      headers,
+      contentType,
+      method = "GET",
       skipAuth,
-      body: this.buildRequestBody(body, contentType),
-      headers: this.buildRequestHeaders(requestHeaders, body == null ? void 0 : contentType)
-    }), { maxRetries: 3 });
+      accessTokenOnly,
+      sdkworkUnwrapKind = "data",
+      ...rest
+    } = options;
+    const requestHeaders = accessTokenOnly ? this.applyAccessTokenOnlyHeaders(headers) : skipAuth ? headers : this.applySdkworkAuthHeaders(headers);
+    const requestBody = this.buildRequestBody(body, contentType);
+    const preparedHeaders = await this.applySdkworkRequestBodyFingerprint(
+      this.buildRequestHeaders(requestHeaders, body == null ? void 0 : contentType),
+      requestBody
+    );
+    const payload = await withRetry(
+      () => execute.call(this, {
+        url: path,
+        method,
+        ...rest,
+        ...skipAuth !== void 0 ? { skipAuth } : {},
+        ...accessTokenOnly !== void 0 ? { accessTokenOnly } : {},
+        ...requestBody !== void 0 ? { body: requestBody } : {},
+        ...preparedHeaders !== void 0 ? { headers: preparedHeaders } : {}
+      }),
+      // Per-request retry overrides (e.g. disabling 5xx retries for
+      // idempotent-terminal operations like turn execution) flow through
+      // options.retry; the default keeps maxRetries: 3.
+      { maxRetries: 3, ...options.retry }
+    );
+    return this.unwrapSdkworkV3Payload(payload, sdkworkUnwrapKind);
   }
   async *streamJson(path, options = {}) {
     const stream = BaseHttpClient.prototype.stream;
     if (typeof stream !== "function") {
       throw new Error("BaseHttpClient stream method is not available");
     }
-    const { body, headers, contentType, method = "GET", skipAuth, ...rest } = options;
-    const authHeaders = skipAuth ? headers : this.applySdkworkAuthHeaders(headers);
-    const requestHeaders = this.buildRequestHeaders({ Accept: "text/event-stream", ...authHeaders != null ? authHeaders : {} }, body == null ? void 0 : contentType);
+    const {
+      body,
+      headers,
+      contentType,
+      method = "GET",
+      skipAuth,
+      accessTokenOnly,
+      ...rest
+    } = options;
+    const authHeaders = accessTokenOnly ? this.applyAccessTokenOnlyHeaders(headers) : skipAuth ? headers : this.applySdkworkAuthHeaders(headers);
+    const requestBody = this.buildRequestBody(body, contentType);
+    const requestHeaders = await this.applySdkworkRequestBodyFingerprint(
+      this.buildRequestHeaders(
+        { Accept: "text/event-stream", ...authHeaders != null ? authHeaders : {} },
+        body == null ? void 0 : contentType
+      ),
+      requestBody
+    );
     for await (const data of stream.call(this, path, {
       method,
       ...rest,
-      skipAuth,
-      body: this.buildRequestBody(body, contentType),
-      headers: requestHeaders
+      ...skipAuth !== void 0 ? { skipAuth } : {},
+      ...accessTokenOnly !== void 0 ? { accessTokenOnly } : {},
+      ...requestBody !== void 0 ? { body: requestBody } : {},
+      ...requestHeaders !== void 0 ? { headers: requestHeaders } : {}
     })) {
       if (data === "[DONE]") {
         return;
@@ -2896,22 +4073,52 @@ var HttpClient = class _HttpClient extends BaseHttpClient {
     }
   }
   async get(path, params, headers) {
-    return this.request(path, { method: "GET", params, headers });
+    return this.request(path, {
+      method: "GET",
+      ...params !== void 0 ? { params } : {},
+      ...headers !== void 0 ? { headers } : {}
+    });
   }
   async post(path, body, params, headers, contentType) {
-    return this.request(path, { method: "POST", body, params, headers, contentType });
+    return this.request(path, {
+      method: "POST",
+      ...body !== void 0 ? { body } : {},
+      ...params !== void 0 ? { params } : {},
+      ...headers !== void 0 ? { headers } : {},
+      ...contentType !== void 0 ? { contentType } : {}
+    });
   }
   async put(path, body, params, headers, contentType) {
-    return this.request(path, { method: "PUT", body, params, headers, contentType });
+    return this.request(path, {
+      method: "PUT",
+      ...body !== void 0 ? { body } : {},
+      ...params !== void 0 ? { params } : {},
+      ...headers !== void 0 ? { headers } : {},
+      ...contentType !== void 0 ? { contentType } : {}
+    });
   }
   async delete(path, params, headers) {
-    return this.request(path, { method: "DELETE", params, headers });
+    return this.request(path, {
+      method: "DELETE",
+      ...params !== void 0 ? { params } : {},
+      ...headers !== void 0 ? { headers } : {}
+    });
   }
   async patch(path, body, params, headers, contentType) {
-    return this.request(path, { method: "PATCH", body, params, headers, contentType });
+    return this.request(path, {
+      method: "PATCH",
+      ...body !== void 0 ? { body } : {},
+      ...params !== void 0 ? { params } : {},
+      ...headers !== void 0 ? { headers } : {},
+      ...contentType !== void 0 ? { contentType } : {}
+    });
   }
 };
-HttpClient.ACCESS_TOKEN_HEADER = "Access-Token";
+_HttpClient.ACCESS_TOKEN_HEADER = "Access-Token";
+_HttpClient.SDKWORK_V3_UNWRAP = true;
+_HttpClient.SDKWORK_V3_REQUEST_FINGERPRINTS = true;
+_HttpClient.REQUIRES_SDKWORK_ACCESS_TOKEN = true;
+var HttpClient = _HttpClient;
 function createHttpClient(config) {
   return new HttpClient(config);
 }
@@ -2923,7 +4130,7 @@ function appApiPath(path) {
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
-  const normalizedPrefixRaw = APP_API_PREFIX2.trim();
+  const normalizedPrefixRaw = (APP_API_PREFIX2 || "").trim();
   const normalizedPrefix = normalizedPrefixRaw ? `/${normalizedPrefixRaw.replace(/^\/+|\/+$/g, "")}` : "";
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   if (!normalizedPrefix || normalizedPrefix === "/") {
@@ -2939,8 +4146,8 @@ var RtcMediaSessionsRtcMediaSessionsCompletionRecordApi = class {
     this.client = client;
   }
   /** Rtc media Sessions completion Record retrieve. */
-  async retrieve(mediaSessionId) {
-    return this.client.get(appApiPath(`/rtc/media_sessions/${serializePathParameter$3(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}/completion_record`));
+  async retrieve(mediaSessionId, requestOptions) {
+    return this.client.request(appApiPath(`/rtc/media_sessions/${serializePathParameter(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}/completion_record`), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "item" });
   }
 };
 var RtcMediaSessionsRtcMediaSessionsApi = class {
@@ -2949,729 +4156,46 @@ var RtcMediaSessionsRtcMediaSessionsApi = class {
     this.completionRecord = new RtcMediaSessionsRtcMediaSessionsCompletionRecordApi(client);
   }
   /** Rtc media Sessions list. */
-  async list(params) {
-    const query = buildQueryString$3([
-      { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
-      { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
-      { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
-      { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
-      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false }
-    ]);
-    return this.client.get(appendQueryString$3(appApiPath(`/rtc/media_sessions`), query));
-  }
-  /** Rtc media Sessions create. */
-  async create(body, params) {
-    const requestHeaders = buildRequestHeaders$1({
-      "Idempotency-Key": { value: params == null ? void 0 : params.idempotencyKey, style: "simple", explode: false }
-    }, {});
-    return this.client.post(appApiPath(`/rtc/media_sessions`), body, void 0, requestHeaders, "application/json");
-  }
-  /** Rtc media Sessions retrieve. */
-  async retrieve(mediaSessionId) {
-    return this.client.get(appApiPath(`/rtc/media_sessions/${serializePathParameter$3(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}`));
-  }
-};
-var RtcMediaSessionsRtcApi = class {
-  constructor(client) {
-    this.client = client;
-    this.mediaSessions = new RtcMediaSessionsRtcMediaSessionsApi(client);
-  }
-};
-var RtcMediaSessionsApi = class {
-  constructor(client) {
-    this.client = client;
-    this.rtc = new RtcMediaSessionsRtcApi(client);
-  }
-};
-function createRtcMediaSessionsApi(client) {
-  return new RtcMediaSessionsApi(client);
-}
-function appendQueryString$3(path, rawQueryString) {
-  const query = rawQueryString.replace(/^\?+/, "");
-  if (!query) {
-    return path;
-  }
-  return path.includes("?") ? `${path}&${query}` : `${path}?${query}`;
-}
-function serializePathParameter$3(value, spec) {
-  if (value === void 0 || value === null) {
-    return "";
-  }
-  const style = spec.style || "simple";
-  if (Array.isArray(value)) {
-    return serializePathArray$3(spec.name, value, style, spec.explode);
-  }
-  if (typeof value === "object") {
-    return serializePathObject$3(spec.name, value, style, spec.explode);
-  }
-  return pathPrefix$3(spec.name, style) + encodePathValue$3(serializePathPrimitive$3(value));
-}
-function serializePathArray$3(name, values, style, explode) {
-  const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue$3(serializePathPrimitive$3(item)));
-  if (serialized.length === 0) {
-    return pathPrefix$3(name, style);
-  }
-  if (style === "matrix") {
-    return explode ? serialized.map((item) => `;${name}=${item}`).join("") : `;${name}=${serialized.join(",")}`;
-  }
-  return pathPrefix$3(name, style) + serialized.join(explode ? "." : ",");
-}
-function serializePathObject$3(name, value, style, explode) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (entries.length === 0) {
-    return pathPrefix$3(name, style);
-  }
-  if (style === "matrix") {
-    return explode ? entries.map(([key, entryValue]) => `;${encodePathValue$3(key)}=${encodePathValue$3(serializePathPrimitive$3(entryValue))}`).join("") : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue$3(key), encodePathValue$3(serializePathPrimitive$3(entryValue))]).join(",")}`;
-  }
-  const serialized = explode ? entries.map(([key, entryValue]) => `${encodePathValue$3(key)}=${encodePathValue$3(serializePathPrimitive$3(entryValue))}`).join(style === "label" ? "." : ",") : entries.flatMap(([key, entryValue]) => [encodePathValue$3(key), encodePathValue$3(serializePathPrimitive$3(entryValue))]).join(",");
-  return pathPrefix$3(name, style) + serialized;
-}
-function pathPrefix$3(name, style, _objectValue) {
-  if (style === "label")
-    return ".";
-  if (style === "matrix")
-    return `;${name}`;
-  return "";
-}
-function encodePathValue$3(value) {
-  return encodeURIComponent(value);
-}
-function serializePathPrimitive$3(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function buildQueryString$3(parameters) {
-  const pairs = [];
-  for (const parameter of parameters) {
-    appendSerializedParameter$3(pairs, parameter);
-  }
-  return pairs.join("&");
-}
-function appendSerializedParameter$3(pairs, parameter) {
-  if (parameter.value === void 0 || parameter.value === null) {
-    return;
-  }
-  if (parameter.contentType) {
-    pairs.push(`${encodeQueryComponent$3(parameter.name)}=${encodeQueryValue$3(JSON.stringify(parameter.value), parameter.allowReserved)}`);
-    return;
-  }
-  const style = parameter.style || "form";
-  if (style === "deepObject") {
-    appendDeepObjectParameter$3(pairs, parameter.name, parameter.value, parameter.allowReserved);
-    return;
-  }
-  if (Array.isArray(parameter.value)) {
-    appendArrayParameter$3(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
-    return;
-  }
-  if (typeof parameter.value === "object") {
-    appendObjectParameter$3(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
-    return;
-  }
-  pairs.push(`${encodeQueryComponent$3(parameter.name)}=${encodeQueryValue$3(serializePrimitive$3(parameter.value), parameter.allowReserved)}`);
-}
-function appendArrayParameter$3(pairs, name, value, style, explode, allowReserved) {
-  const values = value.filter((item) => item !== void 0 && item !== null).map((item) => serializePrimitive$3(item));
-  if (values.length === 0) {
-    return;
-  }
-  if (style === "form" && explode) {
-    for (const item of values) {
-      pairs.push(`${encodeQueryComponent$3(name)}=${encodeQueryValue$3(item, allowReserved)}`);
-    }
-    return;
-  }
-  pairs.push(`${encodeQueryComponent$3(name)}=${encodeQueryValue$3(values.join(","), allowReserved)}`);
-}
-function appendObjectParameter$3(pairs, name, value, style, explode, allowReserved) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (entries.length === 0) {
-    return;
-  }
-  if (style === "form" && explode) {
-    for (const [key, entryValue] of entries) {
-      pairs.push(`${encodeQueryComponent$3(key)}=${encodeQueryValue$3(serializePrimitive$3(entryValue), allowReserved)}`);
-    }
-    return;
-  }
-  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive$3(entryValue)]).join(",");
-  pairs.push(`${encodeQueryComponent$3(name)}=${encodeQueryValue$3(serialized, allowReserved)}`);
-}
-function appendDeepObjectParameter$3(pairs, name, value, allowReserved) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    pairs.push(`${encodeQueryComponent$3(name)}=${encodeQueryValue$3(serializePrimitive$3(value), allowReserved)}`);
-    return;
-  }
-  for (const [key, entryValue] of Object.entries(value)) {
-    if (entryValue === void 0 || entryValue === null) {
-      continue;
-    }
-    pairs.push(`${encodeQueryComponent$3(`${name}[${key}]`)}=${encodeQueryValue$3(serializePrimitive$3(entryValue), allowReserved)}`);
-  }
-}
-function serializePrimitive$3(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function encodeQueryComponent$3(value) {
-  return encodeURIComponent(value);
-}
-function encodeQueryValue$3(value, allowReserved) {
-  const encoded = encodeURIComponent(value);
-  if (!allowReserved) {
-    return encoded;
-  }
-  return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
-}
-function buildRequestHeaders$1(headers, cookies = {}) {
-  const requestHeaders = {};
-  for (const [name, parameter] of Object.entries(headers)) {
-    const serialized = serializeParameterValue$1(parameter);
-    if (serialized !== void 0) {
-      requestHeaders[name] = serialized;
-    }
-  }
-  const cookieHeader = buildCookieHeader$1(cookies);
-  if (cookieHeader) {
-    requestHeaders.Cookie = requestHeaders.Cookie ? `${requestHeaders.Cookie}; ${cookieHeader}` : cookieHeader;
-  }
-  return Object.keys(requestHeaders).length > 0 ? requestHeaders : void 0;
-}
-function buildCookieHeader$1(cookies) {
-  const pairs = [];
-  for (const [name, parameter] of Object.entries(cookies)) {
-    const serialized = serializeParameterValue$1(parameter);
-    if (serialized !== void 0) {
-      pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(serialized)}`);
-    }
-  }
-  return pairs.length > 0 ? pairs.join("; ") : void 0;
-}
-function serializeParameterValue$1(parameter) {
-  const value = parameter == null ? void 0 : parameter.value;
-  if (value === void 0 || value === null) {
-    return void 0;
-  }
-  if (parameter == null ? void 0 : parameter.contentType) {
-    return JSON.stringify(value);
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => serializeHeaderPrimitive$1(item)).join(",");
-  }
-  if (typeof value === "object" && value !== null) {
-    return serializeHeaderObject$1(value, (parameter == null ? void 0 : parameter.explode) === true);
-  }
-  return serializeHeaderPrimitive$1(value);
-}
-function serializeHeaderObject$1(value, explode) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (explode) {
-    return entries.map(([key, entryValue]) => `${key}=${serializeHeaderPrimitive$1(entryValue)}`).join(",");
-  }
-  return entries.flatMap(([key, entryValue]) => [key, serializeHeaderPrimitive$1(entryValue)]).join(",");
-}
-function serializeHeaderPrimitive$1(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return String(value);
-}
-var RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsApi = class {
-  constructor(client) {
-    this.client = client;
-  }
-  /** Rtc media Sessions participant Credentials issue. */
-  async issue(mediaSessionId, participantId, body, params) {
-    const requestHeaders = buildRequestHeaders({
-      "Idempotency-Key": { value: params == null ? void 0 : params.idempotencyKey, style: "simple", explode: false }
-    }, {});
-    return this.client.post(appApiPath(`/rtc/media_sessions/${serializePathParameter$2(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}/participants/${serializePathParameter$2(participantId, { name: "participantId", style: "simple", explode: false })}/credential`), body, void 0, requestHeaders, "application/json");
-  }
-};
-var RtcParticipantCredentialsRtcMediaSessionsApi = class {
-  constructor(client) {
-    this.client = client;
-    this.participantCredentials = new RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsApi(client);
-  }
-};
-var RtcParticipantCredentialsRtcApi = class {
-  constructor(client) {
-    this.client = client;
-    this.mediaSessions = new RtcParticipantCredentialsRtcMediaSessionsApi(client);
-  }
-};
-var RtcParticipantCredentialsApi = class {
-  constructor(client) {
-    this.client = client;
-    this.rtc = new RtcParticipantCredentialsRtcApi(client);
-  }
-};
-function createRtcParticipantCredentialsApi(client) {
-  return new RtcParticipantCredentialsApi(client);
-}
-function serializePathParameter$2(value, spec) {
-  if (value === void 0 || value === null) {
-    return "";
-  }
-  const style = spec.style || "simple";
-  if (Array.isArray(value)) {
-    return serializePathArray$2(spec.name, value, style, spec.explode);
-  }
-  if (typeof value === "object") {
-    return serializePathObject$2(spec.name, value, style, spec.explode);
-  }
-  return pathPrefix$2(spec.name, style) + encodePathValue$2(serializePathPrimitive$2(value));
-}
-function serializePathArray$2(name, values, style, explode) {
-  const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue$2(serializePathPrimitive$2(item)));
-  if (serialized.length === 0) {
-    return pathPrefix$2(name, style);
-  }
-  if (style === "matrix") {
-    return explode ? serialized.map((item) => `;${name}=${item}`).join("") : `;${name}=${serialized.join(",")}`;
-  }
-  return pathPrefix$2(name, style) + serialized.join(explode ? "." : ",");
-}
-function serializePathObject$2(name, value, style, explode) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (entries.length === 0) {
-    return pathPrefix$2(name, style);
-  }
-  if (style === "matrix") {
-    return explode ? entries.map(([key, entryValue]) => `;${encodePathValue$2(key)}=${encodePathValue$2(serializePathPrimitive$2(entryValue))}`).join("") : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue$2(key), encodePathValue$2(serializePathPrimitive$2(entryValue))]).join(",")}`;
-  }
-  const serialized = explode ? entries.map(([key, entryValue]) => `${encodePathValue$2(key)}=${encodePathValue$2(serializePathPrimitive$2(entryValue))}`).join(style === "label" ? "." : ",") : entries.flatMap(([key, entryValue]) => [encodePathValue$2(key), encodePathValue$2(serializePathPrimitive$2(entryValue))]).join(",");
-  return pathPrefix$2(name, style) + serialized;
-}
-function pathPrefix$2(name, style, _objectValue) {
-  if (style === "label")
-    return ".";
-  if (style === "matrix")
-    return `;${name}`;
-  return "";
-}
-function encodePathValue$2(value) {
-  return encodeURIComponent(value);
-}
-function serializePathPrimitive$2(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function buildRequestHeaders(headers, cookies = {}) {
-  const requestHeaders = {};
-  for (const [name, parameter] of Object.entries(headers)) {
-    const serialized = serializeParameterValue(parameter);
-    if (serialized !== void 0) {
-      requestHeaders[name] = serialized;
-    }
-  }
-  const cookieHeader = buildCookieHeader(cookies);
-  if (cookieHeader) {
-    requestHeaders.Cookie = requestHeaders.Cookie ? `${requestHeaders.Cookie}; ${cookieHeader}` : cookieHeader;
-  }
-  return Object.keys(requestHeaders).length > 0 ? requestHeaders : void 0;
-}
-function buildCookieHeader(cookies) {
-  const pairs = [];
-  for (const [name, parameter] of Object.entries(cookies)) {
-    const serialized = serializeParameterValue(parameter);
-    if (serialized !== void 0) {
-      pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(serialized)}`);
-    }
-  }
-  return pairs.length > 0 ? pairs.join("; ") : void 0;
-}
-function serializeParameterValue(parameter) {
-  const value = parameter == null ? void 0 : parameter.value;
-  if (value === void 0 || value === null) {
-    return void 0;
-  }
-  if (parameter == null ? void 0 : parameter.contentType) {
-    return JSON.stringify(value);
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => serializeHeaderPrimitive(item)).join(",");
-  }
-  if (typeof value === "object" && value !== null) {
-    return serializeHeaderObject(value, (parameter == null ? void 0 : parameter.explode) === true);
-  }
-  return serializeHeaderPrimitive(value);
-}
-function serializeHeaderObject(value, explode) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (explode) {
-    return entries.map(([key, entryValue]) => `${key}=${serializeHeaderPrimitive(entryValue)}`).join(",");
-  }
-  return entries.flatMap(([key, entryValue]) => [key, serializeHeaderPrimitive(entryValue)]).join(",");
-}
-function serializeHeaderPrimitive(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return String(value);
-}
-var RtcRecordingArtifactsRtcMediaSessionsRecordingArtifactsApi = class {
-  constructor(client) {
-    this.client = client;
-  }
-  /** Rtc media Sessions recording Artifacts list. */
-  async list(mediaSessionId, params) {
-    const query = buildQueryString$2([
-      { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
-      { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
-      { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
-      { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
-      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false }
-    ]);
-    return this.client.get(appendQueryString$2(appApiPath(`/rtc/media_sessions/${serializePathParameter$1(mediaSessionId, { name: "mediaSessionId" })}/recording_artifacts`), query));
-  }
-};
-var RtcRecordingArtifactsRtcMediaSessionsApi = class {
-  constructor(client) {
-    this.client = client;
-    this.recordingArtifacts = new RtcRecordingArtifactsRtcMediaSessionsRecordingArtifactsApi(client);
-  }
-};
-var RtcRecordingArtifactsRtcApi = class {
-  constructor(client) {
-    this.client = client;
-    this.mediaSessions = new RtcRecordingArtifactsRtcMediaSessionsApi(client);
-  }
-};
-var RtcRecordingArtifactsApi = class {
-  constructor(client) {
-    this.client = client;
-    this.rtc = new RtcRecordingArtifactsRtcApi(client);
-  }
-};
-function createRtcRecordingArtifactsApi(client) {
-  return new RtcRecordingArtifactsApi(client);
-}
-function appendQueryString$2(path, rawQueryString) {
-  const query = rawQueryString.replace(/^\?+/, "");
-  if (!query) {
-    return path;
-  }
-  return path.includes("?") ? `${path}&${query}` : `${path}?${query}`;
-}
-function serializePathParameter$1(value, spec) {
-  if (value === void 0 || value === null) {
-    return "";
-  }
-  if (Array.isArray(value)) {
-    return serializePathArray$1(spec.name, value);
-  }
-  if (typeof value === "object") {
-    return serializePathObject$1(spec.name, value);
-  }
-  return pathPrefix$1() + encodePathValue$1(serializePathPrimitive$1(value));
-}
-function serializePathArray$1(name, values, style, explode) {
-  const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue$1(serializePathPrimitive$1(item)));
-  if (serialized.length === 0) {
-    return pathPrefix$1();
-  }
-  return pathPrefix$1() + serialized.join(",");
-}
-function serializePathObject$1(name, value, style, explode) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (entries.length === 0) {
-    return pathPrefix$1();
-  }
-  const serialized = entries.flatMap(([key, entryValue]) => [encodePathValue$1(key), encodePathValue$1(serializePathPrimitive$1(entryValue))]).join(",");
-  return pathPrefix$1() + serialized;
-}
-function pathPrefix$1(name, style, _objectValue) {
-  return "";
-}
-function encodePathValue$1(value) {
-  return encodeURIComponent(value);
-}
-function serializePathPrimitive$1(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function buildQueryString$2(parameters) {
-  const pairs = [];
-  for (const parameter of parameters) {
-    appendSerializedParameter$2(pairs, parameter);
-  }
-  return pairs.join("&");
-}
-function appendSerializedParameter$2(pairs, parameter) {
-  if (parameter.value === void 0 || parameter.value === null) {
-    return;
-  }
-  if (parameter.contentType) {
-    pairs.push(`${encodeQueryComponent$2(parameter.name)}=${encodeQueryValue$2(JSON.stringify(parameter.value), parameter.allowReserved)}`);
-    return;
-  }
-  const style = parameter.style || "form";
-  if (style === "deepObject") {
-    appendDeepObjectParameter$2(pairs, parameter.name, parameter.value, parameter.allowReserved);
-    return;
-  }
-  if (Array.isArray(parameter.value)) {
-    appendArrayParameter$2(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
-    return;
-  }
-  if (typeof parameter.value === "object") {
-    appendObjectParameter$2(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
-    return;
-  }
-  pairs.push(`${encodeQueryComponent$2(parameter.name)}=${encodeQueryValue$2(serializePrimitive$2(parameter.value), parameter.allowReserved)}`);
-}
-function appendArrayParameter$2(pairs, name, value, style, explode, allowReserved) {
-  const values = value.filter((item) => item !== void 0 && item !== null).map((item) => serializePrimitive$2(item));
-  if (values.length === 0) {
-    return;
-  }
-  if (style === "form" && explode) {
-    for (const item of values) {
-      pairs.push(`${encodeQueryComponent$2(name)}=${encodeQueryValue$2(item, allowReserved)}`);
-    }
-    return;
-  }
-  pairs.push(`${encodeQueryComponent$2(name)}=${encodeQueryValue$2(values.join(","), allowReserved)}`);
-}
-function appendObjectParameter$2(pairs, name, value, style, explode, allowReserved) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (entries.length === 0) {
-    return;
-  }
-  if (style === "form" && explode) {
-    for (const [key, entryValue] of entries) {
-      pairs.push(`${encodeQueryComponent$2(key)}=${encodeQueryValue$2(serializePrimitive$2(entryValue), allowReserved)}`);
-    }
-    return;
-  }
-  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive$2(entryValue)]).join(",");
-  pairs.push(`${encodeQueryComponent$2(name)}=${encodeQueryValue$2(serialized, allowReserved)}`);
-}
-function appendDeepObjectParameter$2(pairs, name, value, allowReserved) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    pairs.push(`${encodeQueryComponent$2(name)}=${encodeQueryValue$2(serializePrimitive$2(value), allowReserved)}`);
-    return;
-  }
-  for (const [key, entryValue] of Object.entries(value)) {
-    if (entryValue === void 0 || entryValue === null) {
-      continue;
-    }
-    pairs.push(`${encodeQueryComponent$2(`${name}[${key}]`)}=${encodeQueryValue$2(serializePrimitive$2(entryValue), allowReserved)}`);
-  }
-}
-function serializePrimitive$2(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function encodeQueryComponent$2(value) {
-  return encodeURIComponent(value);
-}
-function encodeQueryValue$2(value, allowReserved) {
-  const encoded = encodeURIComponent(value);
-  if (!allowReserved) {
-    return encoded;
-  }
-  return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
-}
-var RtcProviderProfilesRtcProviderProfilesActiveApi = class {
-  constructor(client) {
-    this.client = client;
-  }
-  /** Rtc provider Profiles active list. */
-  async list(params) {
-    const query = buildQueryString$1([
-      { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
-      { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
-      { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
-      { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
-      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false }
-    ]);
-    return this.client.get(appendQueryString$1(appApiPath(`/rtc/provider_profiles/active`), query));
-  }
-};
-var RtcProviderProfilesRtcProviderProfilesApi = class {
-  constructor(client) {
-    this.client = client;
-    this.active = new RtcProviderProfilesRtcProviderProfilesActiveApi(client);
-  }
-};
-var RtcProviderProfilesRtcApi = class {
-  constructor(client) {
-    this.client = client;
-    this.providerProfiles = new RtcProviderProfilesRtcProviderProfilesApi(client);
-  }
-};
-var RtcProviderProfilesApi = class {
-  constructor(client) {
-    this.client = client;
-    this.rtc = new RtcProviderProfilesRtcApi(client);
-  }
-};
-function createRtcProviderProfilesApi(client) {
-  return new RtcProviderProfilesApi(client);
-}
-function appendQueryString$1(path, rawQueryString) {
-  const query = rawQueryString.replace(/^\?+/, "");
-  if (!query) {
-    return path;
-  }
-  return path.includes("?") ? `${path}&${query}` : `${path}?${query}`;
-}
-function buildQueryString$1(parameters) {
-  const pairs = [];
-  for (const parameter of parameters) {
-    appendSerializedParameter$1(pairs, parameter);
-  }
-  return pairs.join("&");
-}
-function appendSerializedParameter$1(pairs, parameter) {
-  if (parameter.value === void 0 || parameter.value === null) {
-    return;
-  }
-  if (parameter.contentType) {
-    pairs.push(`${encodeQueryComponent$1(parameter.name)}=${encodeQueryValue$1(JSON.stringify(parameter.value), parameter.allowReserved)}`);
-    return;
-  }
-  const style = parameter.style || "form";
-  if (style === "deepObject") {
-    appendDeepObjectParameter$1(pairs, parameter.name, parameter.value, parameter.allowReserved);
-    return;
-  }
-  if (Array.isArray(parameter.value)) {
-    appendArrayParameter$1(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
-    return;
-  }
-  if (typeof parameter.value === "object") {
-    appendObjectParameter$1(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
-    return;
-  }
-  pairs.push(`${encodeQueryComponent$1(parameter.name)}=${encodeQueryValue$1(serializePrimitive$1(parameter.value), parameter.allowReserved)}`);
-}
-function appendArrayParameter$1(pairs, name, value, style, explode, allowReserved) {
-  const values = value.filter((item) => item !== void 0 && item !== null).map((item) => serializePrimitive$1(item));
-  if (values.length === 0) {
-    return;
-  }
-  if (style === "form" && explode) {
-    for (const item of values) {
-      pairs.push(`${encodeQueryComponent$1(name)}=${encodeQueryValue$1(item, allowReserved)}`);
-    }
-    return;
-  }
-  pairs.push(`${encodeQueryComponent$1(name)}=${encodeQueryValue$1(values.join(","), allowReserved)}`);
-}
-function appendObjectParameter$1(pairs, name, value, style, explode, allowReserved) {
-  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
-  if (entries.length === 0) {
-    return;
-  }
-  if (style === "form" && explode) {
-    for (const [key, entryValue] of entries) {
-      pairs.push(`${encodeQueryComponent$1(key)}=${encodeQueryValue$1(serializePrimitive$1(entryValue), allowReserved)}`);
-    }
-    return;
-  }
-  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive$1(entryValue)]).join(",");
-  pairs.push(`${encodeQueryComponent$1(name)}=${encodeQueryValue$1(serialized, allowReserved)}`);
-}
-function appendDeepObjectParameter$1(pairs, name, value, allowReserved) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    pairs.push(`${encodeQueryComponent$1(name)}=${encodeQueryValue$1(serializePrimitive$1(value), allowReserved)}`);
-    return;
-  }
-  for (const [key, entryValue] of Object.entries(value)) {
-    if (entryValue === void 0 || entryValue === null) {
-      continue;
-    }
-    pairs.push(`${encodeQueryComponent$1(`${name}[${key}]`)}=${encodeQueryValue$1(serializePrimitive$1(entryValue), allowReserved)}`);
-  }
-}
-function serializePrimitive$1(value) {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-function encodeQueryComponent$1(value) {
-  return encodeURIComponent(value);
-}
-function encodeQueryValue$1(value, allowReserved) {
-  const encoded = encodeURIComponent(value);
-  if (!allowReserved) {
-    return encoded;
-  }
-  return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
-}
-var RtcRoomsRtcRoomsApi = class {
-  constructor(client) {
-    this.client = client;
-  }
-  /** Rtc rooms list. */
-  async list(params) {
+  async list(params, requestOptions) {
     const query = buildQueryString([
       { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
       { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
       { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
       { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
-      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false }
+      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false },
+      { name: "status", value: params == null ? void 0 : params.status, style: "form", explode: true, allowReserved: false },
+      { name: "ownerUserId", value: params == null ? void 0 : params.ownerUserId, style: "form", explode: true, allowReserved: false },
+      { name: "createdAfter", value: params == null ? void 0 : params.createdAfter, style: "form", explode: true, allowReserved: false }
     ]);
-    return this.client.get(appendQueryString(appApiPath(`/rtc/rooms`), query));
+    return this.client.request(appendQueryString(appApiPath(`/rtc/media_sessions`), query), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "page" });
   }
-  /** Rtc rooms retrieve. */
-  async retrieve(roomId) {
-    return this.client.get(appApiPath(`/rtc/rooms/${serializePathParameter(roomId, { name: "roomId" })}`));
+  /** Rtc media Sessions create. */
+  async create(body, params, requestOptions) {
+    const requestHeaders = buildRequestHeaders(
+      {
+        "Idempotency-Key": { value: params == null ? void 0 : params.idempotencyKey, style: "simple", explode: false }
+      },
+      {}
+    );
+    return this.client.request(appApiPath(`/rtc/media_sessions`), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "POST", body, contentType: "application/json", ...requestHeaders !== void 0 ? { headers: requestHeaders } : {}, sdkworkUnwrapKind: "item" });
+  }
+  /** Rtc media Sessions retrieve. */
+  async retrieve(mediaSessionId, requestOptions) {
+    return this.client.request(appApiPath(`/rtc/media_sessions/${serializePathParameter(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}`), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "item" });
   }
 };
-var RtcRoomsRtcApi = class {
+var RtcMediaSessionsRtcApi = class {
   constructor(client) {
-    this.client = client;
-    this.rooms = new RtcRoomsRtcRoomsApi(client);
+    this.mediaSessions = new RtcMediaSessionsRtcMediaSessionsApi(client);
   }
 };
-var RtcRoomsApi = class {
+var RtcMediaSessionsApi = class {
   constructor(client) {
-    this.client = client;
-    this.rtc = new RtcRoomsRtcApi(client);
+    this.rtc = new RtcMediaSessionsRtcApi(client);
   }
 };
-function createRtcRoomsApi(client) {
-  return new RtcRoomsApi(client);
+function createRtcMediaSessionsApi(client) {
+  return new RtcMediaSessionsApi(client);
 }
 function appendQueryString(path, rawQueryString) {
   const query = rawQueryString.replace(/^\?+/, "");
@@ -3684,30 +4208,39 @@ function serializePathParameter(value, spec) {
   if (value === void 0 || value === null) {
     return "";
   }
+  const style = spec.style || "simple";
   if (Array.isArray(value)) {
-    return serializePathArray(spec.name, value);
+    return serializePathArray(spec.name, value, style, spec.explode);
   }
   if (typeof value === "object") {
-    return serializePathObject(spec.name, value);
+    return serializePathObject(spec.name, value, style, spec.explode);
   }
-  return pathPrefix() + encodePathValue(serializePathPrimitive(value));
+  return pathPrefix(spec.name, style, false) + encodePathValue(serializePathPrimitive(value));
 }
 function serializePathArray(name, values, style, explode) {
   const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue(serializePathPrimitive(item)));
   if (serialized.length === 0) {
-    return pathPrefix();
+    return pathPrefix(name, style, false);
   }
-  return pathPrefix() + serialized.join(",");
+  if (style === "matrix") {
+    return explode ? serialized.map((item) => `;${name}=${item}`).join("") : `;${name}=${serialized.join(",")}`;
+  }
+  return pathPrefix(name, style, false) + serialized.join(explode ? "." : ",");
 }
 function serializePathObject(name, value, style, explode) {
   const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
   if (entries.length === 0) {
-    return pathPrefix();
+    return pathPrefix(name, style, true);
   }
-  const serialized = entries.flatMap(([key, entryValue]) => [encodePathValue(key), encodePathValue(serializePathPrimitive(entryValue))]).join(",");
-  return pathPrefix() + serialized;
+  if (style === "matrix") {
+    return explode ? entries.map(([key, entryValue]) => `;${encodePathValue(key)}=${encodePathValue(serializePathPrimitive(entryValue))}`).join("") : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue(key), encodePathValue(serializePathPrimitive(entryValue))]).join(",")}`;
+  }
+  const serialized = explode ? entries.map(([key, entryValue]) => `${encodePathValue(key)}=${encodePathValue(serializePathPrimitive(entryValue))}`).join(style === "label" ? "." : ",") : entries.flatMap(([key, entryValue]) => [encodePathValue(key), encodePathValue(serializePathPrimitive(entryValue))]).join(",");
+  return pathPrefix(name, style, true) + serialized;
 }
 function pathPrefix(name, style, _objectValue) {
+  if (style === "label") return ".";
+  if (style === "matrix") return `;${name}`;
   return "";
 }
 function encodePathValue(value) {
@@ -3810,6 +4343,693 @@ function encodeQueryValue(value, allowReserved) {
   }
   return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
 }
+function buildRequestHeaders(headers, cookies = {}) {
+  const requestHeaders = {};
+  for (const [name, parameter] of Object.entries(headers)) {
+    const serialized = serializeParameterValue(parameter);
+    if (serialized !== void 0) {
+      requestHeaders[name] = serialized;
+    }
+  }
+  const cookieHeader = buildCookieHeader(cookies);
+  if (cookieHeader) {
+    requestHeaders.Cookie = requestHeaders.Cookie ? `${requestHeaders.Cookie}; ${cookieHeader}` : cookieHeader;
+  }
+  return Object.keys(requestHeaders).length > 0 ? requestHeaders : void 0;
+}
+function buildCookieHeader(cookies) {
+  const pairs = [];
+  for (const [name, parameter] of Object.entries(cookies)) {
+    const serialized = serializeParameterValue(parameter);
+    if (serialized !== void 0) {
+      pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(serialized)}`);
+    }
+  }
+  return pairs.length > 0 ? pairs.join("; ") : void 0;
+}
+function serializeParameterValue(parameter) {
+  const value = parameter == null ? void 0 : parameter.value;
+  if (value === void 0 || value === null) {
+    return void 0;
+  }
+  if (parameter == null ? void 0 : parameter.contentType) {
+    return JSON.stringify(value);
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeHeaderPrimitive(item)).join(",");
+  }
+  if (typeof value === "object" && value !== null) {
+    return serializeHeaderObject(value, (parameter == null ? void 0 : parameter.explode) === true);
+  }
+  return serializeHeaderPrimitive(value);
+}
+function serializeHeaderObject(value, explode) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (explode) {
+    return entries.map(([key, entryValue]) => `${key}=${serializeHeaderPrimitive(entryValue)}`).join(",");
+  }
+  return entries.flatMap(([key, entryValue]) => [key, serializeHeaderPrimitive(entryValue)]).join(",");
+}
+function serializeHeaderPrimitive(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return String(value);
+}
+var RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsApi = class {
+  constructor(client) {
+    this.client = client;
+  }
+  /** Rtc media Sessions participant Credentials issue. */
+  async issue(mediaSessionId, participantId, body, params, requestOptions) {
+    const requestHeaders = buildRequestHeaders2(
+      {
+        "Idempotency-Key": { value: params == null ? void 0 : params.idempotencyKey, style: "simple", explode: false }
+      },
+      {}
+    );
+    return this.client.request(appApiPath(`/rtc/media_sessions/${serializePathParameter2(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}/participants/${serializePathParameter2(participantId, { name: "participantId", style: "simple", explode: false })}/credential`), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "POST", body, contentType: "application/json", ...requestHeaders !== void 0 ? { headers: requestHeaders } : {}, sdkworkUnwrapKind: "item" });
+  }
+};
+var RtcParticipantCredentialsRtcMediaSessionsApi = class {
+  constructor(client) {
+    this.participantCredentials = new RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsApi(client);
+  }
+};
+var RtcParticipantCredentialsRtcApi = class {
+  constructor(client) {
+    this.mediaSessions = new RtcParticipantCredentialsRtcMediaSessionsApi(client);
+  }
+};
+var RtcParticipantCredentialsApi = class {
+  constructor(client) {
+    this.rtc = new RtcParticipantCredentialsRtcApi(client);
+  }
+};
+function createRtcParticipantCredentialsApi(client) {
+  return new RtcParticipantCredentialsApi(client);
+}
+function serializePathParameter2(value, spec) {
+  if (value === void 0 || value === null) {
+    return "";
+  }
+  const style = spec.style || "simple";
+  if (Array.isArray(value)) {
+    return serializePathArray2(spec.name, value, style, spec.explode);
+  }
+  if (typeof value === "object") {
+    return serializePathObject2(spec.name, value, style, spec.explode);
+  }
+  return pathPrefix2(spec.name, style, false) + encodePathValue2(serializePathPrimitive2(value));
+}
+function serializePathArray2(name, values, style, explode) {
+  const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue2(serializePathPrimitive2(item)));
+  if (serialized.length === 0) {
+    return pathPrefix2(name, style, false);
+  }
+  if (style === "matrix") {
+    return explode ? serialized.map((item) => `;${name}=${item}`).join("") : `;${name}=${serialized.join(",")}`;
+  }
+  return pathPrefix2(name, style, false) + serialized.join(explode ? "." : ",");
+}
+function serializePathObject2(name, value, style, explode) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (entries.length === 0) {
+    return pathPrefix2(name, style, true);
+  }
+  if (style === "matrix") {
+    return explode ? entries.map(([key, entryValue]) => `;${encodePathValue2(key)}=${encodePathValue2(serializePathPrimitive2(entryValue))}`).join("") : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue2(key), encodePathValue2(serializePathPrimitive2(entryValue))]).join(",")}`;
+  }
+  const serialized = explode ? entries.map(([key, entryValue]) => `${encodePathValue2(key)}=${encodePathValue2(serializePathPrimitive2(entryValue))}`).join(style === "label" ? "." : ",") : entries.flatMap(([key, entryValue]) => [encodePathValue2(key), encodePathValue2(serializePathPrimitive2(entryValue))]).join(",");
+  return pathPrefix2(name, style, true) + serialized;
+}
+function pathPrefix2(name, style, _objectValue) {
+  if (style === "label") return ".";
+  if (style === "matrix") return `;${name}`;
+  return "";
+}
+function encodePathValue2(value) {
+  return encodeURIComponent(value);
+}
+function serializePathPrimitive2(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+function buildRequestHeaders2(headers, cookies = {}) {
+  const requestHeaders = {};
+  for (const [name, parameter] of Object.entries(headers)) {
+    const serialized = serializeParameterValue2(parameter);
+    if (serialized !== void 0) {
+      requestHeaders[name] = serialized;
+    }
+  }
+  const cookieHeader = buildCookieHeader2(cookies);
+  if (cookieHeader) {
+    requestHeaders.Cookie = requestHeaders.Cookie ? `${requestHeaders.Cookie}; ${cookieHeader}` : cookieHeader;
+  }
+  return Object.keys(requestHeaders).length > 0 ? requestHeaders : void 0;
+}
+function buildCookieHeader2(cookies) {
+  const pairs = [];
+  for (const [name, parameter] of Object.entries(cookies)) {
+    const serialized = serializeParameterValue2(parameter);
+    if (serialized !== void 0) {
+      pairs.push(`${encodeURIComponent(name)}=${encodeURIComponent(serialized)}`);
+    }
+  }
+  return pairs.length > 0 ? pairs.join("; ") : void 0;
+}
+function serializeParameterValue2(parameter) {
+  const value = parameter == null ? void 0 : parameter.value;
+  if (value === void 0 || value === null) {
+    return void 0;
+  }
+  if (parameter == null ? void 0 : parameter.contentType) {
+    return JSON.stringify(value);
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeHeaderPrimitive2(item)).join(",");
+  }
+  if (typeof value === "object" && value !== null) {
+    return serializeHeaderObject2(value, (parameter == null ? void 0 : parameter.explode) === true);
+  }
+  return serializeHeaderPrimitive2(value);
+}
+function serializeHeaderObject2(value, explode) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (explode) {
+    return entries.map(([key, entryValue]) => `${key}=${serializeHeaderPrimitive2(entryValue)}`).join(",");
+  }
+  return entries.flatMap(([key, entryValue]) => [key, serializeHeaderPrimitive2(entryValue)]).join(",");
+}
+function serializeHeaderPrimitive2(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return String(value);
+}
+var RtcRecordingArtifactsRtcMediaSessionsRecordingArtifactsApi = class {
+  constructor(client) {
+    this.client = client;
+  }
+  /** Rtc media Sessions recording Artifacts list. */
+  async list(mediaSessionId, params, requestOptions) {
+    const query = buildQueryString2([
+      { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
+      { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
+      { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
+      { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
+      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false }
+    ]);
+    return this.client.request(appendQueryString2(appApiPath(`/rtc/media_sessions/${serializePathParameter3(mediaSessionId, { name: "mediaSessionId", style: "simple", explode: false })}/recording_artifacts`), query), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "page" });
+  }
+};
+var RtcRecordingArtifactsRtcMediaSessionsApi = class {
+  constructor(client) {
+    this.recordingArtifacts = new RtcRecordingArtifactsRtcMediaSessionsRecordingArtifactsApi(client);
+  }
+};
+var RtcRecordingArtifactsRtcApi = class {
+  constructor(client) {
+    this.mediaSessions = new RtcRecordingArtifactsRtcMediaSessionsApi(client);
+  }
+};
+var RtcRecordingArtifactsApi = class {
+  constructor(client) {
+    this.rtc = new RtcRecordingArtifactsRtcApi(client);
+  }
+};
+function createRtcRecordingArtifactsApi(client) {
+  return new RtcRecordingArtifactsApi(client);
+}
+function appendQueryString2(path, rawQueryString) {
+  const query = rawQueryString.replace(/^\?+/, "");
+  if (!query) {
+    return path;
+  }
+  return path.includes("?") ? `${path}&${query}` : `${path}?${query}`;
+}
+function serializePathParameter3(value, spec) {
+  if (value === void 0 || value === null) {
+    return "";
+  }
+  const style = spec.style || "simple";
+  if (Array.isArray(value)) {
+    return serializePathArray3(spec.name, value, style, spec.explode);
+  }
+  if (typeof value === "object") {
+    return serializePathObject3(spec.name, value, style, spec.explode);
+  }
+  return pathPrefix3(spec.name, style, false) + encodePathValue3(serializePathPrimitive3(value));
+}
+function serializePathArray3(name, values, style, explode) {
+  const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue3(serializePathPrimitive3(item)));
+  if (serialized.length === 0) {
+    return pathPrefix3(name, style, false);
+  }
+  if (style === "matrix") {
+    return explode ? serialized.map((item) => `;${name}=${item}`).join("") : `;${name}=${serialized.join(",")}`;
+  }
+  return pathPrefix3(name, style, false) + serialized.join(explode ? "." : ",");
+}
+function serializePathObject3(name, value, style, explode) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (entries.length === 0) {
+    return pathPrefix3(name, style, true);
+  }
+  if (style === "matrix") {
+    return explode ? entries.map(([key, entryValue]) => `;${encodePathValue3(key)}=${encodePathValue3(serializePathPrimitive3(entryValue))}`).join("") : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue3(key), encodePathValue3(serializePathPrimitive3(entryValue))]).join(",")}`;
+  }
+  const serialized = explode ? entries.map(([key, entryValue]) => `${encodePathValue3(key)}=${encodePathValue3(serializePathPrimitive3(entryValue))}`).join(style === "label" ? "." : ",") : entries.flatMap(([key, entryValue]) => [encodePathValue3(key), encodePathValue3(serializePathPrimitive3(entryValue))]).join(",");
+  return pathPrefix3(name, style, true) + serialized;
+}
+function pathPrefix3(name, style, _objectValue) {
+  if (style === "label") return ".";
+  if (style === "matrix") return `;${name}`;
+  return "";
+}
+function encodePathValue3(value) {
+  return encodeURIComponent(value);
+}
+function serializePathPrimitive3(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+function buildQueryString2(parameters) {
+  const pairs = [];
+  for (const parameter of parameters) {
+    appendSerializedParameter2(pairs, parameter);
+  }
+  return pairs.join("&");
+}
+function appendSerializedParameter2(pairs, parameter) {
+  if (parameter.value === void 0 || parameter.value === null) {
+    return;
+  }
+  if (parameter.contentType) {
+    pairs.push(`${encodeQueryComponent2(parameter.name)}=${encodeQueryValue2(JSON.stringify(parameter.value), parameter.allowReserved)}`);
+    return;
+  }
+  const style = parameter.style || "form";
+  if (style === "deepObject") {
+    appendDeepObjectParameter2(pairs, parameter.name, parameter.value, parameter.allowReserved);
+    return;
+  }
+  if (Array.isArray(parameter.value)) {
+    appendArrayParameter2(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  if (typeof parameter.value === "object") {
+    appendObjectParameter2(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  pairs.push(`${encodeQueryComponent2(parameter.name)}=${encodeQueryValue2(serializePrimitive2(parameter.value), parameter.allowReserved)}`);
+}
+function appendArrayParameter2(pairs, name, value, style, explode, allowReserved) {
+  const values = value.filter((item) => item !== void 0 && item !== null).map((item) => serializePrimitive2(item));
+  if (values.length === 0) {
+    return;
+  }
+  if (style === "form" && explode) {
+    for (const item of values) {
+      pairs.push(`${encodeQueryComponent2(name)}=${encodeQueryValue2(item, allowReserved)}`);
+    }
+    return;
+  }
+  pairs.push(`${encodeQueryComponent2(name)}=${encodeQueryValue2(values.join(","), allowReserved)}`);
+}
+function appendObjectParameter2(pairs, name, value, style, explode, allowReserved) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (entries.length === 0) {
+    return;
+  }
+  if (style === "form" && explode) {
+    for (const [key, entryValue] of entries) {
+      pairs.push(`${encodeQueryComponent2(key)}=${encodeQueryValue2(serializePrimitive2(entryValue), allowReserved)}`);
+    }
+    return;
+  }
+  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive2(entryValue)]).join(",");
+  pairs.push(`${encodeQueryComponent2(name)}=${encodeQueryValue2(serialized, allowReserved)}`);
+}
+function appendDeepObjectParameter2(pairs, name, value, allowReserved) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    pairs.push(`${encodeQueryComponent2(name)}=${encodeQueryValue2(serializePrimitive2(value), allowReserved)}`);
+    return;
+  }
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (entryValue === void 0 || entryValue === null) {
+      continue;
+    }
+    pairs.push(`${encodeQueryComponent2(`${name}[${key}]`)}=${encodeQueryValue2(serializePrimitive2(entryValue), allowReserved)}`);
+  }
+}
+function serializePrimitive2(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+function encodeQueryComponent2(value) {
+  return encodeURIComponent(value);
+}
+function encodeQueryValue2(value, allowReserved) {
+  const encoded = encodeURIComponent(value);
+  if (!allowReserved) {
+    return encoded;
+  }
+  return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
+}
+var RtcProviderProfilesRtcProviderProfilesActiveApi = class {
+  constructor(client) {
+    this.client = client;
+  }
+  /** Rtc provider Profiles active list. */
+  async list(params, requestOptions) {
+    const query = buildQueryString3([
+      { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
+      { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
+      { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
+      { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
+      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false }
+    ]);
+    return this.client.request(appendQueryString3(appApiPath(`/rtc/provider_profiles/active`), query), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "page" });
+  }
+};
+var RtcProviderProfilesRtcProviderProfilesApi = class {
+  constructor(client) {
+    this.active = new RtcProviderProfilesRtcProviderProfilesActiveApi(client);
+  }
+};
+var RtcProviderProfilesRtcApi = class {
+  constructor(client) {
+    this.providerProfiles = new RtcProviderProfilesRtcProviderProfilesApi(client);
+  }
+};
+var RtcProviderProfilesApi = class {
+  constructor(client) {
+    this.rtc = new RtcProviderProfilesRtcApi(client);
+  }
+};
+function createRtcProviderProfilesApi(client) {
+  return new RtcProviderProfilesApi(client);
+}
+function appendQueryString3(path, rawQueryString) {
+  const query = rawQueryString.replace(/^\?+/, "");
+  if (!query) {
+    return path;
+  }
+  return path.includes("?") ? `${path}&${query}` : `${path}?${query}`;
+}
+function buildQueryString3(parameters) {
+  const pairs = [];
+  for (const parameter of parameters) {
+    appendSerializedParameter3(pairs, parameter);
+  }
+  return pairs.join("&");
+}
+function appendSerializedParameter3(pairs, parameter) {
+  if (parameter.value === void 0 || parameter.value === null) {
+    return;
+  }
+  if (parameter.contentType) {
+    pairs.push(`${encodeQueryComponent3(parameter.name)}=${encodeQueryValue3(JSON.stringify(parameter.value), parameter.allowReserved)}`);
+    return;
+  }
+  const style = parameter.style || "form";
+  if (style === "deepObject") {
+    appendDeepObjectParameter3(pairs, parameter.name, parameter.value, parameter.allowReserved);
+    return;
+  }
+  if (Array.isArray(parameter.value)) {
+    appendArrayParameter3(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  if (typeof parameter.value === "object") {
+    appendObjectParameter3(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  pairs.push(`${encodeQueryComponent3(parameter.name)}=${encodeQueryValue3(serializePrimitive3(parameter.value), parameter.allowReserved)}`);
+}
+function appendArrayParameter3(pairs, name, value, style, explode, allowReserved) {
+  const values = value.filter((item) => item !== void 0 && item !== null).map((item) => serializePrimitive3(item));
+  if (values.length === 0) {
+    return;
+  }
+  if (style === "form" && explode) {
+    for (const item of values) {
+      pairs.push(`${encodeQueryComponent3(name)}=${encodeQueryValue3(item, allowReserved)}`);
+    }
+    return;
+  }
+  pairs.push(`${encodeQueryComponent3(name)}=${encodeQueryValue3(values.join(","), allowReserved)}`);
+}
+function appendObjectParameter3(pairs, name, value, style, explode, allowReserved) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (entries.length === 0) {
+    return;
+  }
+  if (style === "form" && explode) {
+    for (const [key, entryValue] of entries) {
+      pairs.push(`${encodeQueryComponent3(key)}=${encodeQueryValue3(serializePrimitive3(entryValue), allowReserved)}`);
+    }
+    return;
+  }
+  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive3(entryValue)]).join(",");
+  pairs.push(`${encodeQueryComponent3(name)}=${encodeQueryValue3(serialized, allowReserved)}`);
+}
+function appendDeepObjectParameter3(pairs, name, value, allowReserved) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    pairs.push(`${encodeQueryComponent3(name)}=${encodeQueryValue3(serializePrimitive3(value), allowReserved)}`);
+    return;
+  }
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (entryValue === void 0 || entryValue === null) {
+      continue;
+    }
+    pairs.push(`${encodeQueryComponent3(`${name}[${key}]`)}=${encodeQueryValue3(serializePrimitive3(entryValue), allowReserved)}`);
+  }
+}
+function serializePrimitive3(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+function encodeQueryComponent3(value) {
+  return encodeURIComponent(value);
+}
+function encodeQueryValue3(value, allowReserved) {
+  const encoded = encodeURIComponent(value);
+  if (!allowReserved) {
+    return encoded;
+  }
+  return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
+}
+var RtcRoomsRtcRoomsApi = class {
+  constructor(client) {
+    this.client = client;
+  }
+  /** Rtc rooms list. */
+  async list(params, requestOptions) {
+    const query = buildQueryString4([
+      { name: "page", value: params == null ? void 0 : params.page, style: "form", explode: true, allowReserved: false },
+      { name: "page_size", value: params == null ? void 0 : params.pageSize, style: "form", explode: true, allowReserved: false },
+      { name: "cursor", value: params == null ? void 0 : params.cursor, style: "form", explode: true, allowReserved: false },
+      { name: "sort", value: params == null ? void 0 : params.sort, style: "form", explode: true, allowReserved: false },
+      { name: "q", value: params == null ? void 0 : params.q, style: "form", explode: true, allowReserved: false },
+      { name: "status", value: params == null ? void 0 : params.status, style: "form", explode: true, allowReserved: false },
+      { name: "ownerUserId", value: params == null ? void 0 : params.ownerUserId, style: "form", explode: true, allowReserved: false },
+      { name: "createdAfter", value: params == null ? void 0 : params.createdAfter, style: "form", explode: true, allowReserved: false }
+    ]);
+    return this.client.request(appendQueryString4(appApiPath(`/rtc/rooms`), query), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "page" });
+  }
+  /** Rtc rooms retrieve. */
+  async retrieve(roomId, requestOptions) {
+    return this.client.request(appApiPath(`/rtc/rooms/${serializePathParameter4(roomId, { name: "roomId", style: "simple", explode: false })}`), { ...(requestOptions == null ? void 0 : requestOptions.signal) !== void 0 ? { signal: requestOptions.signal } : {}, ...(requestOptions == null ? void 0 : requestOptions.timeout) !== void 0 ? { timeout: requestOptions.timeout } : {}, method: "GET", sdkworkUnwrapKind: "item" });
+  }
+};
+var RtcRoomsRtcApi = class {
+  constructor(client) {
+    this.rooms = new RtcRoomsRtcRoomsApi(client);
+  }
+};
+var RtcRoomsApi = class {
+  constructor(client) {
+    this.rtc = new RtcRoomsRtcApi(client);
+  }
+};
+function createRtcRoomsApi(client) {
+  return new RtcRoomsApi(client);
+}
+function appendQueryString4(path, rawQueryString) {
+  const query = rawQueryString.replace(/^\?+/, "");
+  if (!query) {
+    return path;
+  }
+  return path.includes("?") ? `${path}&${query}` : `${path}?${query}`;
+}
+function serializePathParameter4(value, spec) {
+  if (value === void 0 || value === null) {
+    return "";
+  }
+  const style = spec.style || "simple";
+  if (Array.isArray(value)) {
+    return serializePathArray4(spec.name, value, style, spec.explode);
+  }
+  if (typeof value === "object") {
+    return serializePathObject4(spec.name, value, style, spec.explode);
+  }
+  return pathPrefix4(spec.name, style, false) + encodePathValue4(serializePathPrimitive4(value));
+}
+function serializePathArray4(name, values, style, explode) {
+  const serialized = values.filter((item) => item !== void 0 && item !== null).map((item) => encodePathValue4(serializePathPrimitive4(item)));
+  if (serialized.length === 0) {
+    return pathPrefix4(name, style, false);
+  }
+  if (style === "matrix") {
+    return explode ? serialized.map((item) => `;${name}=${item}`).join("") : `;${name}=${serialized.join(",")}`;
+  }
+  return pathPrefix4(name, style, false) + serialized.join(explode ? "." : ",");
+}
+function serializePathObject4(name, value, style, explode) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (entries.length === 0) {
+    return pathPrefix4(name, style, true);
+  }
+  if (style === "matrix") {
+    return explode ? entries.map(([key, entryValue]) => `;${encodePathValue4(key)}=${encodePathValue4(serializePathPrimitive4(entryValue))}`).join("") : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue4(key), encodePathValue4(serializePathPrimitive4(entryValue))]).join(",")}`;
+  }
+  const serialized = explode ? entries.map(([key, entryValue]) => `${encodePathValue4(key)}=${encodePathValue4(serializePathPrimitive4(entryValue))}`).join(style === "label" ? "." : ",") : entries.flatMap(([key, entryValue]) => [encodePathValue4(key), encodePathValue4(serializePathPrimitive4(entryValue))]).join(",");
+  return pathPrefix4(name, style, true) + serialized;
+}
+function pathPrefix4(name, style, _objectValue) {
+  if (style === "label") return ".";
+  if (style === "matrix") return `;${name}`;
+  return "";
+}
+function encodePathValue4(value) {
+  return encodeURIComponent(value);
+}
+function serializePathPrimitive4(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+function buildQueryString4(parameters) {
+  const pairs = [];
+  for (const parameter of parameters) {
+    appendSerializedParameter4(pairs, parameter);
+  }
+  return pairs.join("&");
+}
+function appendSerializedParameter4(pairs, parameter) {
+  if (parameter.value === void 0 || parameter.value === null) {
+    return;
+  }
+  if (parameter.contentType) {
+    pairs.push(`${encodeQueryComponent4(parameter.name)}=${encodeQueryValue4(JSON.stringify(parameter.value), parameter.allowReserved)}`);
+    return;
+  }
+  const style = parameter.style || "form";
+  if (style === "deepObject") {
+    appendDeepObjectParameter4(pairs, parameter.name, parameter.value, parameter.allowReserved);
+    return;
+  }
+  if (Array.isArray(parameter.value)) {
+    appendArrayParameter4(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  if (typeof parameter.value === "object") {
+    appendObjectParameter4(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  pairs.push(`${encodeQueryComponent4(parameter.name)}=${encodeQueryValue4(serializePrimitive4(parameter.value), parameter.allowReserved)}`);
+}
+function appendArrayParameter4(pairs, name, value, style, explode, allowReserved) {
+  const values = value.filter((item) => item !== void 0 && item !== null).map((item) => serializePrimitive4(item));
+  if (values.length === 0) {
+    return;
+  }
+  if (style === "form" && explode) {
+    for (const item of values) {
+      pairs.push(`${encodeQueryComponent4(name)}=${encodeQueryValue4(item, allowReserved)}`);
+    }
+    return;
+  }
+  pairs.push(`${encodeQueryComponent4(name)}=${encodeQueryValue4(values.join(","), allowReserved)}`);
+}
+function appendObjectParameter4(pairs, name, value, style, explode, allowReserved) {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== void 0 && entryValue !== null);
+  if (entries.length === 0) {
+    return;
+  }
+  if (style === "form" && explode) {
+    for (const [key, entryValue] of entries) {
+      pairs.push(`${encodeQueryComponent4(key)}=${encodeQueryValue4(serializePrimitive4(entryValue), allowReserved)}`);
+    }
+    return;
+  }
+  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive4(entryValue)]).join(",");
+  pairs.push(`${encodeQueryComponent4(name)}=${encodeQueryValue4(serialized, allowReserved)}`);
+}
+function appendDeepObjectParameter4(pairs, name, value, allowReserved) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    pairs.push(`${encodeQueryComponent4(name)}=${encodeQueryValue4(serializePrimitive4(value), allowReserved)}`);
+    return;
+  }
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (entryValue === void 0 || entryValue === null) {
+      continue;
+    }
+    pairs.push(`${encodeQueryComponent4(`${name}[${key}]`)}=${encodeQueryValue4(serializePrimitive4(entryValue), allowReserved)}`);
+  }
+}
+function serializePrimitive4(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+function encodeQueryComponent4(value) {
+  return encodeURIComponent(value);
+}
+function encodeQueryValue4(value, allowReserved) {
+  const encoded = encodeURIComponent(value);
+  if (!allowReserved) {
+    return encoded;
+  }
+  return encoded.replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%23/gi, "#").replace(/%5B/gi, "[").replace(/%5D/gi, "]").replace(/%40/gi, "@").replace(/%21/gi, "!").replace(/%24/gi, "$").replace(/%26/gi, "&").replace(/%27/gi, "'").replace(/%28/gi, "(").replace(/%29/gi, ")").replace(/%2A/gi, "*").replace(/%2B/gi, "+").replace(/%2C/gi, ",").replace(/%3B/gi, ";").replace(/%3D/gi, "=");
+}
 var SdkworkAppClient = class {
   constructor(config) {
     this.httpClient = createHttpClient(config);
@@ -3865,28 +5085,6 @@ function createRtcAppSdkClient({
     headers: session ? buildRtcAppSdkHeaders(session) : void 0,
     platform
   });
-}
-
-// packages/sdkwork-rtc-mp-core/src/sdk/sdkWorkEnvelope.ts
-function readSdkWorkListPage(data) {
-  var _a, _b;
-  if (!data) {
-    return { items: [] };
-  }
-  const nextCursor = (_a = data.pageInfo) == null ? void 0 : _a.nextCursor;
-  return {
-    items: (_b = data.items) != null ? _b : [],
-    nextCursor: typeof nextCursor === "string" && nextCursor.length > 0 ? nextCursor : void 0
-  };
-}
-function readSdkWorkItem(data) {
-  if (!data) {
-    throw new Error("Missing SDK response data");
-  }
-  if ("item" in data && data.item !== void 0) {
-    return data.item;
-  }
-  throw new Error("Missing SDK response data.item");
 }
 
 // src/bootstrap/tokenManager.ts
@@ -3994,12 +5192,12 @@ function bootstrapAppAuth() {
 // src/bootstrap/environment.ts
 var RUNTIME_CONFIG_KEY = "sdkwork.rtc.runtime.config";
 var defaultEnvironment = {
-  apiBaseUrl: "http://127.0.0.1:18088/app/v3/api",
-  appbaseLoginUrl: "http://127.0.0.1:3900",
+  apiBaseUrl: "http://127.0.0.1:18088/app/v3/api".length > 0 ? "http://127.0.0.1:18088/app/v3/api" : "",
+  appbaseLoginUrl: "http://127.0.0.1:3900".length > 0 ? "http://127.0.0.1:3900" : "",
   defaultMediaMode: "video"
 };
 function normalizeBaseUrl(value, fallback) {
-  const normalized = String(value != null ? value : "").trim();
+  const [normalized] = splitBaseUrls(String(value != null ? value : "").trim());
   return normalized || fallback;
 }
 function readStoredRuntimeConfig() {
@@ -4033,6 +5231,9 @@ function saveRuntimeEnvironment(config) {
     ...resolveEnvironment(),
     ...config
   };
+  if (config.apiBaseUrl !== void 0) {
+    next.apiBaseUrl = normalizeBaseUrl(config.apiBaseUrl, defaultEnvironment.apiBaseUrl);
+  }
   const wxStorage = globalThis.wx;
   (_a = wxStorage == null ? void 0 : wxStorage.setStorageSync) == null ? void 0 : _a.call(wxStorage, RUNTIME_CONFIG_KEY, next);
   return next;
@@ -4063,86 +5264,6 @@ function bootstrap(query = {}) {
   initAppSdkClient();
 }
 
-// packages/sdkwork-rtc-mp-rtc/src/services/rtcAppServices.ts
-function createRtcCommandIdempotencyKey(scope) {
-  var _a, _b, _c;
-  const randomPart = (_c = (_b = (_a = globalThis.crypto) == null ? void 0 : _a.randomUUID) == null ? void 0 : _b.call(_a)) != null ? _c : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `rtc-${scope}-${randomPart}`;
-}
-var MediaSessionService = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async list(params) {
-    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.list({
-      page: params == null ? void 0 : params.page,
-      pageSize: params == null ? void 0 : params.pageSize,
-      cursor: params == null ? void 0 : params.cursor,
-      q: params == null ? void 0 : params.search,
-      sort: params == null ? void 0 : params.sort
-    });
-    return readSdkWorkListPage(response.data);
-  }
-  async get(mediaSessionId) {
-    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.retrieve(mediaSessionId);
-    return readSdkWorkItem(response.data);
-  }
-  async create(body, options) {
-    var _a;
-    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.create(body, {
-      idempotencyKey: (_a = options == null ? void 0 : options.idempotencyKey) != null ? _a : createRtcCommandIdempotencyKey("media-session-create")
-    });
-    return readSdkWorkItem(response.data);
-  }
-};
-var ProviderProfileService = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async listActive() {
-    const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.active.list();
-    return readSdkWorkListPage(response.data).items;
-  }
-  resolveDefaultProviderAppId(profiles) {
-    var _a, _b;
-    const preferred = (_a = profiles.find((profile) => profile.isDefault && profile.providerAppId)) != null ? _a : profiles.find((profile) => profile.providerAppId);
-    return (_b = preferred == null ? void 0 : preferred.providerAppId) != null ? _b : void 0;
-  }
-  resolveDefaultProviderKey(profiles) {
-    var _a, _b;
-    const preferred = (_a = profiles.find((profile) => profile.isDefault && profile.provider)) != null ? _a : profiles.find((profile) => profile.provider);
-    return (_b = preferred == null ? void 0 : preferred.provider) != null ? _b : void 0;
-  }
-};
-var ParticipantCredentialService = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async issue(mediaSessionId, participantId, reason = "join", options) {
-    var _a;
-    const response = await this.client.rtcParticipantCredentials.rtc.mediaSessions.participantCredentials.issue(
-      mediaSessionId,
-      participantId,
-      { reason },
-      {
-        idempotencyKey: (_a = options == null ? void 0 : options.idempotencyKey) != null ? _a : createRtcCommandIdempotencyKey("participant-credential-issue")
-      }
-    );
-    const credential = readSdkWorkItem(response.data);
-    if (!credential.credential) {
-      throw new Error("RTC participant credential was not issued");
-    }
-    return credential.credential;
-  }
-};
-function createRtcAppServices(client) {
-  return {
-    mediaSessions: new MediaSessionService(client),
-    participantCredentials: new ParticipantCredentialService(client),
-    providerProfiles: new ProviderProfileService(client)
-  };
-}
-
 // src/bootstrap/appServices.ts
 var appServices = null;
 function createAppServices() {
@@ -4151,6 +5272,13 @@ function createAppServices() {
 }
 
 // src/bootstrap/runtimeBundle.ts
+var mediaRuntimePromise = null;
+async function getMediaRuntime() {
+  if (!mediaRuntimePromise) {
+    mediaRuntimePromise = createMiniProgramRtcMediaRuntime();
+  }
+  return mediaRuntimePromise;
+}
 function getServices() {
   return createAppServices();
 }
@@ -4167,9 +5295,12 @@ function bootstrapRtcMiniProgram(query = {}) {
   installWeixinFetch();
   bootstrap(query);
 }
-async function listMediaSessions() {
-  const result = await getServices().mediaSessions.list();
-  return result.items.map(mapSessionSummary);
+async function listMediaSessions(params) {
+  const result = await getServices().mediaSessions.list({ cursor: params == null ? void 0 : params.cursor });
+  return {
+    items: result.items.map(mapSessionSummary),
+    nextCursor: result.nextCursor
+  };
 }
 async function createMediaSession(input) {
   const created = await getServices().mediaSessions.create({
@@ -4208,6 +5339,50 @@ async function issueJoinCredential(sessionId, participantId) {
     roomId: session.roomId,
     mediaMode: session.mediaMode
   };
+}
+async function joinMediaSession(sessionId, participantId) {
+  const issued = await issueJoinCredential(sessionId, participantId);
+  const runtime = await getMediaRuntime();
+  const viewState = await runtime.join({
+    appId: issued.providerAppId,
+    sessionId,
+    roomId: issued.roomId,
+    participantId: participantId.trim(),
+    token: issued.credential
+  });
+  return {
+    ...viewState,
+    credential: issued.credential,
+    providerAppId: issued.providerAppId,
+    roomId: issued.roomId
+  };
+}
+async function leaveMediaSession() {
+  const runtime = await getMediaRuntime();
+  await runtime.leave();
+}
+function getMediaSessionRoomViewState() {
+  if (!mediaRuntimePromise) {
+    return Promise.resolve({
+      connected: false,
+      pushUrl: "",
+      remoteStreams: [],
+      message: "RTC media runtime has not been initialized."
+    });
+  }
+  return mediaRuntimePromise.then((runtime) => runtime.getViewState());
+}
+async function subscribeMediaSessionRoomViewState(listener) {
+  const runtime = await getMediaRuntime();
+  return runtime.subscribeViewState(listener);
+}
+async function reportMediaPusherStateChange(code, message) {
+  const runtime = await getMediaRuntime();
+  runtime.reportPusherStateChange(code, message);
+}
+async function reportMediaPusherNetStatusChange(info) {
+  const runtime = await getMediaRuntime();
+  runtime.reportPusherNetStatusChange(info);
 }
 function configureRtcRuntime(config) {
   return saveRuntimeEnvironment(config);
