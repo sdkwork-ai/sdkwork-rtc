@@ -1,4 +1,4 @@
-import { splitBaseUrls } from "@sdkwork/sdk-common";
+import {resolveBaseUrlWithAlignProtocol, splitBaseUrls} from "@sdkwork/sdk-common";
 
 export interface RtcEnvironment {
   apiBaseUrl: string;
@@ -10,27 +10,42 @@ declare const __SDKWORK_RTC_DEFAULT_API_BASE_URL__: string | undefined;
 declare const __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__: string | undefined;
 
 const RUNTIME_CONFIG_KEY = "sdkwork.rtc.runtime.config";
+const DEFAULT_MEDIA_MODE = "video";
 
-const defaultEnvironment: RtcEnvironment = {
-  apiBaseUrl:
-    typeof __SDKWORK_RTC_DEFAULT_API_BASE_URL__ === "string" &&
-    __SDKWORK_RTC_DEFAULT_API_BASE_URL__.length > 0
-      ? __SDKWORK_RTC_DEFAULT_API_BASE_URL__
-      : "",
-  appbaseLoginUrl:
-    typeof __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__ === "string" &&
-    __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__.length > 0
-      ? __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__
-      : "",
-  defaultMediaMode: "video",
-};
+function readInjectedDefault(value: string | undefined): string {
+  const [injected = ""] = splitBaseUrls(String(value ?? "").trim());
+  return injected;
+}
 
-function normalizeBaseUrl(value: string | undefined, fallback: string): string {
-  // Mini programs have no `window.location`, so the base url is injected by the
+function resolveDefaultApiBaseUrl(): string {
+  // The build-time injected profile value wins; otherwise the shared
+  // SDKWORK_API_BASE_URL is resolved. `preservePath` keeps the `/app/v3/api`
+  // path configured through that key.
+  return (
+    readInjectedDefault(
+      typeof __SDKWORK_RTC_DEFAULT_API_BASE_URL__ === "string"
+        ? __SDKWORK_RTC_DEFAULT_API_BASE_URL__
+        : undefined,
+    ) || resolveBaseUrlWithAlignProtocol({ preservePath: true }).url
+  );
+}
+
+function resolveDefaultAppbaseLoginUrl(): string {
+  return (
+    readInjectedDefault(
+      typeof __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__ === "string"
+        ? __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__
+        : undefined,
+    ) || resolveBaseUrlWithAlignProtocol().url
+  );
+}
+
+function normalizeBaseUrl(value: string | undefined, fallback: () => string): string {
+  // Mini programs have no browser location, so the base url is injected by the
   // host. A comma/semicolon separated list of candidates is accepted and the
   // first one wins.
   const [normalized] = splitBaseUrls(String(value ?? "").trim());
-  return normalized || fallback;
+  return normalized || fallback();
 }
 
 function readStoredRuntimeConfig(): Partial<RtcEnvironment> {
@@ -52,9 +67,12 @@ function readStoredRuntimeConfig(): Partial<RtcEnvironment> {
 export function resolveEnvironment(): RtcEnvironment {
   const stored = readStoredRuntimeConfig();
   return {
-    apiBaseUrl: normalizeBaseUrl(stored.apiBaseUrl, defaultEnvironment.apiBaseUrl),
-    appbaseLoginUrl: normalizeBaseUrl(stored.appbaseLoginUrl, defaultEnvironment.appbaseLoginUrl),
-    defaultMediaMode: stored.defaultMediaMode ?? defaultEnvironment.defaultMediaMode,
+    apiBaseUrl: normalizeBaseUrl(stored.apiBaseUrl, resolveDefaultApiBaseUrl),
+    appbaseLoginUrl: normalizeBaseUrl(
+      stored.appbaseLoginUrl,
+      resolveDefaultAppbaseLoginUrl,
+    ),
+    defaultMediaMode: stored.defaultMediaMode ?? DEFAULT_MEDIA_MODE,
   };
 }
 
@@ -64,7 +82,7 @@ export function saveRuntimeEnvironment(config: Partial<RtcEnvironment>): RtcEnvi
     ...config,
   };
   if (config.apiBaseUrl !== undefined) {
-    next.apiBaseUrl = normalizeBaseUrl(config.apiBaseUrl, defaultEnvironment.apiBaseUrl);
+    next.apiBaseUrl = normalizeBaseUrl(config.apiBaseUrl, resolveDefaultApiBaseUrl);
   }
   const wxStorage = (globalThis as { wx?: { setStorageSync(key: string, value: unknown): void } }).wx;
   wxStorage?.setStorageSync?.(RUNTIME_CONFIG_KEY, next);
