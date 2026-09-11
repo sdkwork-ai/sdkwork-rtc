@@ -3648,7 +3648,7 @@ var CURRENCY_NAMES = {
 var DEFAULT_LOCALE_RULES = LOCALE_RULES["en-us"];
 var DEFAULT_CURRENCY_NAMES = CURRENCY_NAMES["en-us"];
 
-// ../../sdks/sdkwork-rtc-app-sdk/sdkwork-rtc-app-sdk-typescript/generated/server-openapi/dist/index.js
+// ../../sdks/sdkwork-rtc-app-sdk/sdkwork-rtc-app-sdk-typescript/src/index.ts
 var _HttpClient = class _HttpClient2 extends BaseHttpClient {
   constructor(config) {
     super(config);

@@ -1,9 +1,13 @@
 [package]
+rust-version.workspace = true
 name = "sdkwork-api-rtc-standalone-gateway"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+
+[lints]
+workspace = true
 [lib]
 name = "sdkwork_api_rtc_standalone_gateway"
 path = "src/lib.rs"
