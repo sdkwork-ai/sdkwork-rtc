@@ -1,4 +1,12 @@
 # Example standalone stack for integration testing. Copy and replace secrets before use.
+# Shared log rotation policy (OPERATIONS_SPEC.md §2.3): every service rotates
+# at 10MB, keeping 3 files, so container logs cannot fill the host disk.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-bookworm
@@ -15,6 +23,7 @@ services:
       retries: 5
     volumes:
       - ./init/001-workspace-schema.sql:/docker-entrypoint-initdb.d/001-workspace-schema.sql:ro
+    logging: *default-logging
 
   rtc-standalone-gateway:
     image: ghcr.io/sdkwork/rtc-standalone-gateway:latest
@@ -39,3 +48,4 @@ services:
       SDKWORK_RTC_HYDRATE_TENANT_ID: "100"
       SDKWORK_RTC_HYDRATE_ORGANIZATION_ID: "0"
       SDKWORK_RTC_APP_CONTEXT_REQUIRE_SIGNATURE: "false"
+    logging: *default-logging
