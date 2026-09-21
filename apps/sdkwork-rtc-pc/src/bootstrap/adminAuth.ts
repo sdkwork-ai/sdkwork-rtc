@@ -1,3 +1,4 @@
+import { readBootstrapAccessTokenFromProcessEnv } from '@sdkwork/iam-credential-entry';
 import {
   createTokenManager as createSdkworkTokenManager,
   type AuthTokenManager,
@@ -108,8 +109,10 @@ export function buildAdminSdkHeaders(session: RtcAdminSession): Record<string, s
 
 export function createAdminTokenManager(session: RtcAdminSession): AuthTokenManager {
   const manager = createSdkworkTokenManager();
+  // Fall back to the private bootstrap Access-Token artifact when no interactive
+  // admin session exists (APP_SDK_INTEGRATION_SPEC section 4).
   manager.setTokens?.({
-    accessToken: session.accessToken,
+    accessToken: session.accessToken ?? readBootstrapAccessTokenFromProcessEnv(),
     authToken: session.authToken,
   });
   return manager;

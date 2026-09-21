@@ -13,6 +13,7 @@
     "@sdkwork/rtc-mp-rtc": "workspace:*",
     "@sdkwork/rtc-mp-shell": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*",
+    "@sdkwork/iam-credential-entry": "workspace:*",
     "@sdkwork/rtc-app-sdk": "workspace:*"
   },
   "devDependencies": {

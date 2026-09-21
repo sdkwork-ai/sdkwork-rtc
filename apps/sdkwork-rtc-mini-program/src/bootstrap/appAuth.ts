@@ -1,3 +1,4 @@
+import { readBootstrapAccessTokenFromProcessEnv } from '@sdkwork/iam-credential-entry';
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 import {
   listLegacyRtcMpSessionStorageKeys,
@@ -79,8 +80,10 @@ export function clearAppSession(): void {
 
 export function createAppTokenManager(session: RtcAppSession): AuthTokenManager {
   const manager = createTokenManager();
+  // Fall back to the private bootstrap Access-Token artifact when no interactive
+  // app session exists (APP_SDK_INTEGRATION_SPEC section 4).
   manager.setTokens?.({
-    accessToken: session.accessToken,
+    accessToken: session.accessToken ?? readBootstrapAccessTokenFromProcessEnv(),
     authToken: session.authToken,
   });
   return manager;
