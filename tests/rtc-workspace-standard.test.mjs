@@ -61,16 +61,16 @@ test("sdkwork-rtc keeps app packages under app surface roots", () => {
 
 test("sdkwork-rtc mini program root exposes user RTC surface packages", () => {
   const appRoot = "apps/sdkwork-rtc-mini-program";
-  assert.ok(exists(`${appRoot}/sdkwork.app.config.json`), `${appRoot}/sdkwork.app.config.json must exist`);
+  assert.ok(exists(`${appRoot}/agent.app.config.json`), `${appRoot}/agent.app.config.json must exist`);
   assert.ok(exists(`${appRoot}/src/app.json`), `${appRoot}/src/app.json must exist`);
   const appJson = JSON.parse(read(`${appRoot}/src/app.json`));
   assert.ok(
     appJson.pages?.includes("pages/media-session-room/index"),
     `${appRoot}/src/app.json must include media session room page`,
   );
-  const appConfig = JSON.parse(read(`${appRoot}/sdkwork.app.config.json`));
+  const appConfig = JSON.parse(read(`${appRoot}/agent.app.config.json`));
   assert.equal(appConfig.schemaVersion, 3, `${appRoot} must use App Manifest Standard v3`);
-  assert.equal(appConfig.kind, "sdkwork.app");
+  assert.equal(appConfig.kind, "agent.app");
   assert.equal(appConfig.runtime?.family, "mini-program");
   const rtcPackageSource = read(`${appRoot}/packages/sdkwork-rtc-mp-rtc/package.json`);
   assert.match(rtcPackageSource, /@sdkwork\/rtc-app-sdk/u, "sdkwork-rtc-mp-rtc must depend on the composed RTC app SDK facade");
@@ -210,9 +210,9 @@ test("sdkwork-rtc runnable app roots use App Manifest Standard v3", () => {
     "apps/sdkwork-rtc-flutter-mobile",
     "apps/sdkwork-rtc-mini-program",
   ]) {
-    const appConfig = JSON.parse(read(`${appRoot}/sdkwork.app.config.json`));
-    assert.equal(appConfig.schemaVersion, 3, `${appRoot}/sdkwork.app.config.json must use schemaVersion 3`);
-    assert.equal(appConfig.kind, "sdkwork.app", `${appRoot}/sdkwork.app.config.json must use kind sdkwork.app`);
+    const appConfig = JSON.parse(read(`${appRoot}/agent.app.config.json`));
+    assert.equal(appConfig.schemaVersion, 3, `${appRoot}/agent.app.config.json must use schemaVersion 3`);
+    assert.equal(appConfig.kind, "agent.app", `${appRoot}/agent.app.config.json must use kind agent.app`);
     assert.ok(appConfig.app?.key, `${appRoot} manifest must declare app.key`);
     assert.ok(appConfig.publish?.platforms?.length, `${appRoot} manifest must declare publish.platforms`);
     assert.ok(appConfig.environments?.production, `${appRoot} manifest must declare production environment`);
@@ -233,7 +233,7 @@ test("sdkwork-rtc runnable app roots declare component specs", () => {
     assert.equal(spec.component?.name, expectation.name);
     assert.equal(spec.component?.type, expectation.type);
     assert.equal(spec.component?.domain, "rtc", `${specPath} must declare rtc domain`);
-    assert.ok(spec.component?.manifests?.includes("sdkwork.app.config.json"), `${specPath} must declare sdkwork.app.config.json`);
+    assert.ok(spec.component?.manifests?.includes("agent.app.config.json"), `${specPath} must declare agent.app.config.json`);
   }
 });
 

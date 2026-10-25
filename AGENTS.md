@@ -20,7 +20,7 @@ Do not copy root standard text into this repository. If these relative paths do 
 
 ## Application Identity
 
-No `sdkwork.app.config.json` is present at this root. This repository is the RTC authority workspace with Rust crates, provider plugins, API contracts, and SDK families. If a runnable app surface is added later, place its app root under `apps/` or add a root manifest according to `APP_MANIFEST_SPEC.md`.
+No `agent.app.config.json` is present at this root. This repository is the RTC authority workspace with Rust crates, provider plugins, API contracts, and SDK families. If a runnable app surface is added later, place its app root under `apps/` or add a root manifest according to `APP_MANIFEST_SPEC.md`.
 
 ## IM Dependency Boundary
 
@@ -61,7 +61,7 @@ No `sdkwork.app.config.json` is present at this root. This repository is the RTC
 ## Spec Resolution Order
 
 1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
-2. Read `sdkwork.app.config.json` when present.
+2. Read `agent.app.config.json` when present.
 3. Read local `specs/README.md` and `specs/component.spec.json` when present.
 4. Read local `.sdkwork/README.md`, `.sdkwork/skills/`, and `.sdkwork/plugins/` when relevant.
 5. Read `../sdkwork-specs/README.md` and the task-specific root specs.

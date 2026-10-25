@@ -231,7 +231,7 @@ async function main() {
   const profileEnv = loadProfile(profileId);
   const runtimeEnv = mergeRepoDevBootstrapAccessTokenEnv({
     repoRoot: REPO_ROOT,
-    manifestPath: 'apps/sdkwork-rtc-pc/sdkwork.app.config.json',
+    manifestPath: 'apps/sdkwork-rtc-pc/agent.app.config.json',
     appId: 'sdkwork-rtc-pc',
     env: mergeRuntimeEnv(process.env, profileEnv, resolveIamDevEnv(process.env), IAM_APPLICATION_BOOTSTRAP_ENV, {
       SDKWORK_RTC_PROFILE_ID: profileId,
