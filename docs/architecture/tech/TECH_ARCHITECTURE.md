@@ -51,7 +51,7 @@ Specs: `../sdkwork-specs/ARCHITECTURE_DECISION_SPEC.md`, `../sdkwork-specs/DOCUM
 | Shared utilities | `sdkwork-utils-rust`, `@sdkwork/utils` |
 | Client | React (PC/H5), Flutter, WeChat mini program |
 | API contracts | OpenAPI under `apis/`, materialized to `sdks/` |
-| Packaging | `sdkwork.workflow.json`, GitHub Actions, K8s/systemd/Docker |
+| Packaging | `agent.workflow.json`, GitHub Actions, K8s/systemd/Docker |
 
 **Not used (by design):** `sdkwork-discovery` — no RPC services in this workspace yet.
 
