@@ -159,7 +159,7 @@
   },
   "targets": [
     {
-      "id": "linux-x64-standalone-server-tar-gz",
+      "id": "linux-x64-standalone-server-server-tar-gz",
       "profile": "server",
       "platform": "linux",
       "architecture": "x64",
