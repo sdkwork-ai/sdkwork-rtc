@@ -125,6 +125,36 @@
           "iam.permissions.read"
         ]
       }
+    },
+    {
+      "id": "sdkwork-rtc-flutter-mobile",
+      "root": "apps/sdkwork-rtc-flutter-mobile",
+      "format": "flutter",
+      "runtimeTarget": "flutter-android",
+      "bindings": {},
+      "accessToken": {
+        "appId": "sdkwork-rtc-sdkwork-rtc-flutter-mobile",
+        "tenantId": "100001",
+        "organizationId": "0",
+        "permissionScope": [
+          "iam:self"
+        ]
+      }
+    },
+    {
+      "id": "sdkwork-rtc-mini-program",
+      "root": "apps/sdkwork-rtc-mini-program",
+      "format": "mini-program",
+      "runtimeTarget": "mini-program",
+      "bindings": {},
+      "accessToken": {
+        "appId": "sdkwork-rtc-sdkwork-rtc-mini-program",
+        "tenantId": "100001",
+        "organizationId": "0",
+        "permissionScope": [
+          "iam:self"
+        ]
+      }
     }
   ]
 }
