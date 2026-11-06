@@ -26,9 +26,12 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "MP_WEIXIN",
-    "appId": null,
+    "appId": "sdkwork-rtc-sdkwork-rtc-mini-program",
     "organizationId": "0",
-    "tenantId": "100001"
+    "tenantId": "100001",
+    "accessTokenPermissionScope": [
+      "iam:self"
+    ]
   },
   "runtime": {
     "family": "mini-program",
