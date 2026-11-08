@@ -93,7 +93,7 @@ impl RtcPostgresSessionTokenGrantRepository {
         let sql = if participant_id.is_some() {
             r#"
             UPDATE rtc_session_token_grant
-            SET status = $1, revoked_at = $2
+            SET status = $1, revoked_at = CAST($2 AS TIMESTAMP)
             WHERE tenant_id = $3
               AND organization_id = $4
               AND session_id = $5
@@ -103,7 +103,7 @@ impl RtcPostgresSessionTokenGrantRepository {
         } else {
             r#"
             UPDATE rtc_session_token_grant
-            SET status = $1, revoked_at = $2
+            SET status = $1, revoked_at = CAST($2 AS TIMESTAMP)
             WHERE tenant_id = $3
               AND organization_id = $4
               AND session_id = $5
@@ -219,7 +219,7 @@ fn postgres_upsert_session_token_grant_sql() -> &'static str {
         created_at,
         status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CAST($10 AS TIMESTAMP), CAST($11 AS TIMESTAMP), CAST($12 AS TIMESTAMP), $13)
     ON CONFLICT (uuid) DO UPDATE SET
         provider_profile_id = excluded.provider_profile_id,
         token_hash = excluded.token_hash,
