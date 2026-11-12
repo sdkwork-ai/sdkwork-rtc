@@ -142,10 +142,13 @@ describe("rtc pc architecture contract", () => {
   it("defers admin auth to backend dual-token bootstrap until admin IAM surface exists", () => {
     const adminAuthGate = read("src/AuthGate.tsx");
     const adminAuth = read("src/bootstrap/adminAuth.ts");
+    const adminSessionStorage = read("src/bootstrap/adminSessionStorage.ts");
 
     expect(adminAuthGate).toContain("DEFAULT_ADMIN_SESSION");
     expect(adminAuthGate).not.toContain("SdkworkIamAuthRoutes");
-    expect(adminAuth).toContain("sdkwork-rtc-pc:admin-session:v1");
+    expect(adminSessionStorage).toContain("sdkwork-rtc-pc:admin-session:v1");
+    expect(adminSessionStorage).toContain("sessionStorage");
+    expect(adminSessionStorage).not.toMatch(/localStorage\.setItem/u);
     expect(adminAuth).not.toMatch(/\/backend\/v3\/api\/auth/u);
   });
 

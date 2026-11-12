@@ -353,7 +353,8 @@ test("sdkwork-rtc client surfaces use app-scoped IAM session storage keys", () =
   assert.match(h5IamSession, /sdkwork-rtc-h5:session:v1/u);
   assert.match(mpSessionKey, /sdkwork-rtc-mini-program:session:v1/u);
   assert.match(flutterSession, /sdkwork-rtc-flutter-mobile:session:v1/u);
-  assert.match(read("apps/sdkwork-rtc-pc/src/bootstrap/adminAuth.ts"), /sdkwork-rtc-pc:admin-session:v1/u);
+  assert.match(read("apps/sdkwork-rtc-pc/src/bootstrap/adminSessionStorage.ts"), /sdkwork-rtc-pc:admin-session:v1/u);
+  assert.match(read("apps/sdkwork-rtc-pc/src/bootstrap/adminAuth.ts"), /RTC_ADMIN_SESSION_STORAGE_KEY|adminSessionStorage/u);
   assert.match(read("apps/sdkwork-rtc-h5/src/bootstrap/adminAuth.ts"), /sdkwork-rtc-h5:admin-session:v1/u);
 
   for (const source of [pcIamSession, h5IamSession]) {

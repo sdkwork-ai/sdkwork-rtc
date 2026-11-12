@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 
+import { RTC_IAM_SESSION_CHANGED_EVENT } from "@sdkwork/rtc-pc-core";
+
 import {
   bootstrapAdminAuth,
   clearAdminSession,
@@ -44,6 +46,27 @@ export function AuthGate({ children }: AuthGateProps) {
     clearAdminSession();
     setSession(null);
     setForm(DEFAULT_ADMIN_SESSION);
+  }, []);
+
+  // Signing out of the user session (or losing it) also ends the admin console
+  // session: the admin token must not outlive the identity that was signed in.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handleUserSessionChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ session?: unknown }>).detail;
+      if (detail?.session) {
+        return;
+      }
+      clearAdminSession();
+      setSession(null);
+      setForm(DEFAULT_ADMIN_SESSION);
+    };
+    window.addEventListener(RTC_IAM_SESSION_CHANGED_EVENT, handleUserSessionChanged);
+    return () => {
+      window.removeEventListener(RTC_IAM_SESSION_CHANGED_EVENT, handleUserSessionChanged);
+    };
   }, []);
 
   if (session) {
