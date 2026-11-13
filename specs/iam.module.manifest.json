@@ -126,5 +126,28 @@
         "source": "openapi"
       }
     ]
+  },
+  "roles": {
+    "domainStandardRoles": [],
+    "roleExclusions": [],
+    "roleGrantExtensions": [
+      {
+        "roleCode": "app_user",
+        "patterns": [
+          "rtc.media_artifacts.read",
+          "rtc.media_sessions.credentials.issue",
+          "rtc.media_sessions.read",
+          "rtc.media_sessions.write",
+          "rtc.provider_profiles.read",
+          "rtc.rooms.read"
+        ]
+      },
+      {
+        "roleCode": "org_admin",
+        "patterns": [
+          "rtc.*"
+        ]
+      }
+    ]
   }
 }
