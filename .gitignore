@@ -95,3 +95,6 @@ temp/
 !.env.cloud.staging
 !.env.cloud.demo
 !.env.cloud.production
+
+# Local agent scratch state (plans, session dumps) must not be committed
+.zcode/
