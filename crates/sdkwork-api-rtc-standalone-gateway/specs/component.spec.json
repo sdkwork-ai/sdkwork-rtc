@@ -5,11 +5,11 @@
     "name": "sdkwork-api-rtc-standalone-gateway",
     "displayName": "SDKWork RTC API Server",
     "version": "0.1.0",
-    "type": "rust-api-standalone-gateway",
-    "root": "crates/sdkwork-api-rtc-standalone-gateway",
+    "type": "rust-crate",
+    "root": "sdkwork-rtc/crates/sdkwork-api-rtc-standalone-gateway",
     "domain": "communication",
     "declaredDomain": null,
-    "capability": "api-gateway",
+    "capability": "rtc",
     "status": "standardizing",
     "languages": [
       "rust"
@@ -18,8 +18,7 @@
     "private": false,
     "manifests": [
       "Cargo.toml"
-    ],
-    "surface": "gateway-api"
+    ]
   },
   "canonicalSpecs": [
     {
@@ -78,21 +77,13 @@
     "runtimeEntrypoints": [
       "src/main.rs"
     ],
-    "requiredPorts": [
-      {
-        "name": "applicationApiAssembly",
-        "export": "sdkwork_api_rtc_assembly::assemble_api_router",
-        "provider": "sdkwork-api-rtc-assembly"
-      }
-    ],
     "routeManifest": null,
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": [],
-    "layerRole": "runtime-gateway"
+    "configKeys": []
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

@@ -84,8 +84,14 @@ Tencent adapter environment keys:
 - `SDKWORK_RTC_TENCENT_SECRET_ID`
 - `SDKWORK_RTC_TENCENT_SECRET_KEY`
 
-Provider secrets are used only inside provider adapter plugins. They are not stored in RTC business
-tables and are not included in normalized query snapshots.
+The environment keys above are the process-level fallback. The admin console
+(`/admin/rtc/dashboard`) is the primary path: the seeded provider catalog
+provisions an account, application, profile, and route for every built-in
+provider, and the operator enters the provider App ID and secret once. The
+service seals the secret with AES-256-GCM
+(`SDKWORK_RTC_PROVIDER_CREDENTIAL_MASTER_SECRET`) into
+`rtc_provider_credential`; raw secrets are never returned by the API, never
+included in normalized query snapshots, and never committed to seed SQL.
 
 ## Persistence
 

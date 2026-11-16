@@ -41,7 +41,7 @@ export function ProviderRouteForm({ profileIds, onSubmit, onCancel }: Props) {
           onClick={() =>
             onSubmit({
               providerProfileId: (document.getElementById("route-profile") as HTMLSelectElement).value,
-              routeType: (document.getElementById("route-type") as HTMLInputElement).value,
+              routeType: "region",
               region: (document.getElementById("route-region") as HTMLInputElement).value || undefined,
               priority: Number((document.getElementById("route-priority") as HTMLInputElement).value),
             })

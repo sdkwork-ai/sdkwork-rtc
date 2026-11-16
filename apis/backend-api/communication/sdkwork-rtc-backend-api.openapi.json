@@ -8357,6 +8357,24 @@
             "type": "string",
             "description": "Reference to secret-managed provider credential material. Raw provider secrets are never returned by the RTC API."
           },
+          "credentialKind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Secret shape recorded for the credential (for example secret_text or access_key_pair)."
+          },
+          "secretConfigured": {
+            "type": "boolean",
+            "description": "Whether sealed secret material is stored for this credential."
+          },
+          "secretMaskedLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Non-reversible masked preview of the stored secret."
+          },
           "credentialFingerprint": {
             "type": [
               "string",
@@ -8484,6 +8502,20 @@
           },
           "credentialRef": {
             "type": "string"
+          },
+          "credentialKind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credentialSecret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "writeOnly": true,
+            "description": "Raw provider secret. Sealed with the deployment master secret before persistence and never returned."
           },
           "credentialFingerprint": {
             "type": [
@@ -8690,6 +8722,13 @@
               "string",
               "null"
             ]
+          },
+          "providerApplicationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Linked RTC provider application that owns the credential material."
           },
           "providerAppId": {
             "type": [
@@ -8902,6 +8941,13 @@
               "string",
               "null"
             ]
+          },
+          "providerApplicationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Linked RTC provider application that owns the credential material."
           },
           "providerAppId": {
             "type": [

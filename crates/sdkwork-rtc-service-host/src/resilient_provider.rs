@@ -162,7 +162,9 @@ impl RtcProviderPort for TimeoutRtcProviderPort {
         &self,
         request: RtcCdnRelayStartRequest,
     ) -> Result<RtcCdnRelayHandle, RtcContractError> {
-        self.run_with_timeout("start_cdn_relay", move |inner| inner.start_cdn_relay(request))
+        self.run_with_timeout("start_cdn_relay", move |inner| {
+            inner.start_cdn_relay(request)
+        })
     }
 
     fn stop_cdn_relay(&self, request: RtcCdnRelayStopRequest) -> Result<bool, RtcContractError> {

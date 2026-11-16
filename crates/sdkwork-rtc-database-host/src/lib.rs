@@ -38,11 +38,29 @@ pub async fn bootstrap_rtc_database(pool: DatabasePool) -> Result<RtcDatabaseHos
         .await
         .map_err(|error| format!("rtc database init failed: {error}"))?;
 
-    if options.auto_migrate {
+    // Apply additive post-GA migrations before the reference seed set. The
+    // manifest keeps `autoMigrate` false for authoritative-server modules, so
+    // the seed-enabled boot path is also the module's explicit lifecycle
+    // upgrade point: a deployment that receives the new provider catalog must
+    // first receive the additive provider-secret columns the catalog uses.
+    if options.auto_migrate || options.seed_on_boot {
         orchestrator
             .migrate()
             .await
             .map_err(|error| format!("rtc database migrate failed: {error}"))?;
+    }
+
+    // Provider catalog reference data must exist in every environment: without
+    // an account -> application -> profile -> route chain the console opens
+    // empty and the first call fails with "No active RTC provider profile is
+    // configured". The seed set is idempotent and contains only secret
+    // references, never secret material, so applying it on boot is safe for
+    // development, test, staging, demo and production installs.
+    if options.seed_on_boot {
+        orchestrator
+            .seed(&options.seed_locale, &options.seed_profile)
+            .await
+            .map_err(|error| format!("rtc database seed failed: {error}"))?;
     }
 
     Ok(RtcDatabaseHost { pool, module })
@@ -67,4 +85,55 @@ fn resolve_app_root() -> PathBuf {
                 .canonicalize()
                 .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The provider catalog is reference data, not tenant-private data: every
+    /// environment must ship the same standard seed set. This test guards the
+    /// manifest wiring that makes the boot-time seed (and the explicit
+    /// `pnpm db:seed`) provision the five built-in providers.
+    #[test]
+    fn standard_seed_profile_ships_the_provider_catalog() {
+        let root = resolve_app_root();
+        let seed_manifest =
+            std::fs::read_to_string(root.join("database/seeds/seed.manifest.json"))
+                .expect("read the RTC seed manifest");
+        assert!(seed_manifest.contains("002_rtc_provider_catalog.sql"));
+        assert!(seed_manifest.contains("003_rtc_provider_credentials.sql"));
+
+        let database_manifest = std::fs::read_to_string(root.join("database/database.manifest.json"))
+            .expect("read the RTC database manifest");
+        assert!(
+            database_manifest.contains("\"seedOnBoot\": true"),
+            "provider catalog reference data must be applied on boot in every environment"
+        );
+    }
+
+    /// Every built-in provider in the plugin registry must have a seeded
+    /// account/application/profile/route chain. This keeps the catalog aligned
+    /// with the provider adapters the runtime can actually serve.
+    #[test]
+    fn provider_catalog_covers_every_registered_plugin() {
+        let root = resolve_app_root();
+        let registry = std::fs::read_to_string(
+            root.join("specs/provider-registry/platform-default.json"),
+        )
+        .expect("read the provider registry");
+        let catalog =
+            std::fs::read_to_string(root.join("database/seeds/common/002_rtc_provider_catalog.sql"))
+                .expect("read the provider catalog seed");
+        for provider in ["volcengine", "tencent", "agora", "aliyun", "livekit"] {
+            assert!(
+                registry.contains(&format!("\"{provider}\"")),
+                "provider registry must declare {provider}"
+            );
+            assert!(
+                catalog.contains(&format!("'{provider}'")),
+                "provider catalog must seed {provider}"
+            );
+        }
+    }
 }

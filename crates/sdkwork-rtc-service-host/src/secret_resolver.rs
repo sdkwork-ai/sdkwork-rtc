@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RtcSecretResolverError {
@@ -117,6 +117,75 @@ impl RtcSecretResolver for MapRtcSecretResolver {
 }
 
 pub type SharedRtcSecretResolver = Arc<dyn RtcSecretResolver>;
+
+/// Runtime secret store populated from sealed RTC provider credentials.
+///
+/// The store is consulted before the environment fallback, so an operator who
+/// enters a provider secret in the admin console takes effect without a
+/// redeploy. Sealed credentials are hydrated at startup and refreshed whenever
+/// a credential is written or revoked.
+#[derive(Clone, Debug, Default)]
+pub struct RtcSecretStore {
+    secrets: Arc<RwLock<BTreeMap<String, String>>>,
+    fallback: EnvRtcSecretResolver,
+}
+
+impl RtcSecretStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&self, secret_ref: &str, value: &str) {
+        let trimmed_ref = secret_ref.trim();
+        let trimmed_value = value.trim();
+        if trimmed_ref.is_empty() || trimmed_value.is_empty() {
+            return;
+        }
+        if let Ok(mut secrets) = self.secrets.write() {
+            secrets.insert(trimmed_ref.to_owned(), trimmed_value.to_owned());
+        }
+    }
+
+    pub fn remove(&self, secret_ref: &str) {
+        if let Ok(mut secrets) = self.secrets.write() {
+            secrets.remove(secret_ref.trim());
+        }
+    }
+
+    pub fn replace_all(&self, values: BTreeMap<String, String>) {
+        if let Ok(mut secrets) = self.secrets.write() {
+            *secrets = values;
+        }
+    }
+
+    pub fn snapshot(&self) -> BTreeMap<String, String> {
+        self.secrets
+            .read()
+            .map(|secrets| secrets.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn contains(&self, secret_ref: &str) -> bool {
+        self.secrets
+            .read()
+            .map(|secrets| secrets.contains_key(secret_ref.trim()))
+            .unwrap_or(false)
+    }
+}
+
+impl RtcSecretResolver for RtcSecretStore {
+    fn resolve_secret(&self, secret_ref: &str) -> Result<String, RtcSecretResolverError> {
+        let trimmed = secret_ref.trim();
+        if let Ok(secrets) = self.secrets.read() {
+            if let Some(value) = secrets.get(trimmed) {
+                if !value.trim().is_empty() {
+                    return Ok(value.clone());
+                }
+            }
+        }
+        self.fallback.resolve_secret(trimmed)
+    }
+}
 
 fn allows_plaintext_secret_refs() -> bool {
     let environment = std::env::var("SDKWORK_RTC_ENVIRONMENT")

@@ -56,6 +56,7 @@
         ],
         "summary": "Rtc media Sessions list.",
         "operationId": "rtc.mediaSessions.list",
+        "x-sdkwork-permission": "rtc.media_sessions.read",
         "parameters": [
           {
             "name": "page",
@@ -229,6 +230,7 @@
         ],
         "summary": "Rtc media Sessions create.",
         "operationId": "rtc.mediaSessions.create",
+        "x-sdkwork-permission": "rtc.media_sessions.write",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -350,6 +352,7 @@
         ],
         "summary": "Rtc media Sessions retrieve.",
         "operationId": "rtc.mediaSessions.retrieve",
+        "x-sdkwork-permission": "rtc.media_sessions.read",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -456,6 +459,7 @@
         ],
         "summary": "Rtc media Sessions completion Record retrieve.",
         "operationId": "rtc.mediaSessions.completionRecord.retrieve",
+        "x-sdkwork-permission": "rtc.media_sessions.read",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -562,6 +566,7 @@
         ],
         "summary": "Rtc media Sessions participant Credentials issue.",
         "operationId": "rtc.mediaSessions.participantCredentials.issue",
+        "x-sdkwork-permission": "rtc.media_sessions.credentials.issue",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -699,6 +704,7 @@
         ],
         "summary": "Rtc media Sessions recording Artifacts list.",
         "operationId": "rtc.mediaSessions.recordingArtifacts.list",
+        "x-sdkwork-permission": "rtc.media_artifacts.read",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -850,6 +856,7 @@
         ],
         "summary": "Rtc provider Profiles active list.",
         "operationId": "rtc.providerProfiles.active.list",
+        "x-sdkwork-permission": "rtc.provider_profiles.read",
         "parameters": [
           {
             "name": "page",
@@ -993,6 +1000,7 @@
         ],
         "summary": "Rtc rooms list.",
         "operationId": "rtc.rooms.list",
+        "x-sdkwork-permission": "rtc.rooms.read",
         "parameters": [
           {
             "name": "page",
@@ -1166,6 +1174,7 @@
         ],
         "summary": "Rtc rooms retrieve.",
         "operationId": "rtc.rooms.retrieve",
+        "x-sdkwork-permission": "rtc.rooms.read",
         "parameters": [
           {
             "name": "roomId",

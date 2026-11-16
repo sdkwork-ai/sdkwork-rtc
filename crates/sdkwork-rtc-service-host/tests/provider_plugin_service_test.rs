@@ -11,26 +11,27 @@ fn reconcile_env_lock() -> std::sync::MutexGuard<'static, ()> {
 }
 
 use sdkwork_communication_rtc_service::{
-    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor, RtcActiveProviderProfileListPage,
-    RtcContractError, RtcCreateMediaSessionRequest, RtcMediaArtifact, RtcMediaArtifactListPage,
+    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor,
+    RtcActiveProviderProfileListPage, RtcContractError, RtcCreateMediaSessionRequest, RtcListPage,
+    RtcListWindowError, RtcListWindowParams, RtcMediaArtifact, RtcMediaArtifactListPage,
     RtcMediaSession, RtcMediaSessionEndSource, RtcMediaSessionIdempotencyClaim,
     RtcMediaSessionIdempotencyRecord, RtcMediaSessionListPage, RtcMediaSessionMode,
     RtcMediaSessionStatus, RtcParticipantCredential, RtcPersistenceChangeSet, RtcPersistenceFuture,
     RtcPersistencePort, RtcProviderAccountCommand, RtcProviderAccountDisableRequest,
-    RtcProviderAccountListPage,     RtcProviderApplicationCommand, RtcProviderApplicationDisableRequest,
-    RtcProviderApplicationListPage, RtcProviderApplication,     RtcProviderCredentialCommand, RtcProviderCredentialListPage, RtcProviderCredentialRevokeRequest,
-    RtcProviderCredentialRole, RtcProviderCredentialStatus, RtcProviderCredential,
+    RtcProviderAccountListPage, RtcProviderApplication, RtcProviderApplicationCommand,
+    RtcProviderApplicationDisableRequest, RtcProviderApplicationListPage, RtcProviderCredential,
+    RtcProviderCredentialCommand, RtcProviderCredentialListPage,
+    RtcProviderCredentialRevokeRequest, RtcProviderCredentialRole, RtcProviderCredentialStatus,
     RtcProviderEventKind, RtcProviderPluginFactory, RtcProviderPort, RtcProviderProfileListPage,
     RtcProviderQueryKind, RtcProviderQueryRequest, RtcProviderQueryResult,
     RtcProviderQuerySnapshotListPage, RtcProviderRouteListPage, RtcProviderWebhookEvent,
-    RtcProviderWebhookEventRecord, RtcProviderWebhookEventListPage, RtcProviderWebhookParseRequest,
+    RtcProviderWebhookEventListPage, RtcProviderWebhookEventRecord, RtcProviderWebhookParseRequest,
     RtcProviderWebhookVerifyRequest, RtcQualitySampleListPage, RtcRecordingArtifact,
-    RtcRecordingArtifactExportRequest, RtcRecordingArtifactsFuture, RtcRecordingLifecycleReconcileQuery,
-    RtcRoom, RtcRoomListPage, RtcRoomScopeQuery, RtcScopedListQuery, RtcListWindowParams,
-    RtcListPage, RtcListWindowError, apply_list_window,
-    RtcRuntimeLoadRequest, RtcSessionHandle, RtcSessionTokenGrantStatus,
+    RtcRecordingArtifactExportRequest, RtcRecordingArtifactsFuture,
+    RtcRecordingLifecycleReconcileQuery, RtcRoom, RtcRoomListPage, RtcRoomScopeQuery,
+    RtcRuntimeLoadRequest, RtcScopedListQuery, RtcSessionHandle, RtcSessionTokenGrantStatus,
     RtcStaleMediaSessionReconcileCandidates, RtcStaleMediaSessionReconcileQuery,
-    RtcTenantOrganizationScope, hash_participant_credential_token,
+    RtcTenantOrganizationScope, apply_list_window, hash_participant_credential_token,
     verify_hmac_sha256_payload,
 };
 use sdkwork_routes_rtc_app_api::service::{
@@ -43,7 +44,8 @@ use sdkwork_routes_rtc_backend_api::service::{
     RtcProviderWebhookIngress, RtcProviderWebhookReceiveRequest,
 };
 use sdkwork_rtc_service_host::{
-    MapRtcSecretResolver, RtcProductService, RtcProviderPluginRegistry, RtcSessionReconcileResult,
+    MapRtcSecretResolver, RtcProductService, RtcProviderPluginRegistry, RtcSecretResolver,
+    RtcSessionReconcileResult,
 };
 
 fn test_rtc_service(registry: RtcProviderPluginRegistry) -> RtcProductService {
@@ -201,7 +203,7 @@ async fn product_service_runs_rtc_flows_through_registered_provider_plugins() {
             page: None,
             page_size: None,
             cursor: None,
-            
+
             q: None,
             sort: None,
         })
@@ -969,6 +971,79 @@ async fn product_service_manages_volcengine_account_application_and_credential_r
             })),
         "provider credential changes must be persisted"
     );
+}
+
+#[tokio::test]
+async fn product_service_seals_provider_secret_and_resolves_it_at_runtime() {
+    let _env_lock = reconcile_env_lock();
+    let master_env = "SDKWORK_RTC_PROVIDER_CREDENTIAL_MASTER_SECRET";
+    let previous_master = std::env::var(master_env).ok();
+    unsafe {
+        std::env::set_var(master_env, "rtc-provider-secret-test-master");
+    }
+
+    let registry = RtcProviderPluginRegistry::new()
+        .with_provider(Arc::new(FakeProvider::new("volcengine", true)))
+        .expect("volcengine provider should register");
+    let service = test_rtc_service(registry);
+
+    let result = async {
+        let account = service
+            .create_provider_account(
+                "941".into(),
+                Some("942".into()),
+                "943".into(),
+                provider_account_command("volcengine"),
+            )
+            .await
+            .expect("provider account should create");
+        let application = service
+            .create_provider_application(
+                "941".into(),
+                Some("942".into()),
+                "943".into(),
+                account.id,
+                provider_application_command("volcengine", "volcengine_app_id"),
+            )
+            .await
+            .expect("provider application should create");
+
+        let mut command =
+            provider_credential_command(RtcProviderCredentialRole::RtcTokenSigning, "app-key");
+        command.credential_secret = Some("super-secret-app-key".into());
+        let credential = service
+            .create_provider_credential(
+                "941".into(),
+                Some("942".into()),
+                "943".into(),
+                application.id,
+                command,
+            )
+            .await
+            .expect("credential with a write-only secret should create");
+
+        assert!(credential.secret_configured);
+        assert_eq!(
+            credential.secret_masked_label.as_deref(),
+            Some("supe****-key")
+        );
+        assert_ne!(
+            credential.secret_ciphertext.as_deref(),
+            Some("super-secret-app-key")
+        );
+        let resolved = service
+            .secret_store()
+            .resolve_secret(&credential.credential_ref)
+            .expect("stored secret should resolve from the runtime secret store");
+        assert_eq!(resolved, "super-secret-app-key");
+    }
+    .await;
+
+    match previous_master {
+        Some(value) => unsafe { std::env::set_var(master_env, value) },
+        None => unsafe { std::env::remove_var(master_env) },
+    }
+    result
 }
 
 #[tokio::test]
@@ -1791,7 +1866,7 @@ async fn product_service_rejects_provider_account_and_application_code_changes()
 }
 
 #[tokio::test]
-async fn product_service_rejects_provider_application_external_identity_changes() {
+async fn product_service_updates_provider_application_external_identity_but_not_its_kind() {
     let registry = RtcProviderPluginRegistry::new()
         .with_provider(Arc::new(FakeProvider::new("volcengine", true)))
         .expect("volcengine provider should register");
@@ -1819,7 +1894,7 @@ async fn product_service_rejects_provider_application_external_identity_changes(
 
     let mut app_id_update = provider_application_command("volcengine", "volcengine_app_id");
     app_id_update.provider_application_id = "different-volcengine-app-id".into();
-    let rejected_app_id_update = service
+    let updated_app_id = service
         .update_provider_application(
             "932".into(),
             Some("933".into()),
@@ -1827,10 +1902,13 @@ async fn product_service_rejects_provider_application_external_identity_changes(
             application.id.clone(),
             app_id_update,
         )
-        .await;
-    assert!(
-        matches!(rejected_app_id_update, Err(RtcBackendApiError::BadRequest(message)) if message.contains("provider application id cannot be changed")),
-        "provider application update must not rebind the provider-owned application id"
+        .await
+        .expect(
+            "provider application update must allow replacing the provider-owned application id",
+        );
+    assert_eq!(
+        updated_app_id.provider_application_id,
+        "different-volcengine-app-id"
     );
 
     let mut app_id_kind_update =
@@ -3284,7 +3362,7 @@ async fn backend_rtc_records_are_filtered_by_organization_scope() {
         page: None,
         page_size: None,
         cursor: None,
-        
+
         q: None,
         sort: None,
     };
@@ -3298,7 +3376,7 @@ async fn backend_rtc_records_are_filtered_by_organization_scope() {
         page: None,
         page_size: None,
         cursor: None,
-        
+
         q: None,
         sort: None,
     };
@@ -3621,7 +3699,8 @@ impl RtcPersistencePort for RecordingPersistence {
         _tenant_id: &'a str,
         _organization_id: &'a str,
         _provider_account_id: &'a str,
-    ) -> RtcPersistenceFuture<'a, Option<sdkwork_communication_rtc_service::RtcProviderAccount>> {
+    ) -> RtcPersistenceFuture<'a, Option<sdkwork_communication_rtc_service::RtcProviderAccount>>
+    {
         Box::pin(async { Ok(None) })
     }
 
@@ -3650,7 +3729,8 @@ impl RtcPersistencePort for RecordingPersistence {
         _tenant_id: &'a str,
         _organization_id: &'a str,
         _provider_profile_id: &'a str,
-    ) -> RtcPersistenceFuture<'a, Option<sdkwork_communication_rtc_service::RtcProviderProfile>> {
+    ) -> RtcPersistenceFuture<'a, Option<sdkwork_communication_rtc_service::RtcProviderProfile>>
+    {
         Box::pin(async { Ok(None) })
     }
 
@@ -3668,7 +3748,10 @@ impl RtcPersistencePort for RecordingPersistence {
         _tenant_id: &'a str,
         _organization_id: &'a str,
         _provider_query_job_id: &'a str,
-    ) -> RtcPersistenceFuture<'a, Option<sdkwork_communication_rtc_service::RtcProviderQueryJobRecord>> {
+    ) -> RtcPersistenceFuture<
+        'a,
+        Option<sdkwork_communication_rtc_service::RtcProviderQueryJobRecord>,
+    > {
         Box::pin(async { Ok(None) })
     }
 
@@ -3734,7 +3817,9 @@ impl RtcPersistencePort for RecordingPersistence {
     ) -> RtcPersistenceFuture<'a, RtcProviderCredentialListPage> {
         Box::pin(async move {
             self.paginate_credentials(query).map_err(|error| {
-                sdkwork_communication_rtc_service::RtcPersistenceError::Unavailable(error.to_string())
+                sdkwork_communication_rtc_service::RtcPersistenceError::Unavailable(
+                    error.to_string(),
+                )
             })
         })
     }
@@ -4173,6 +4258,7 @@ fn provider_profile_command(
         priority,
         environment: "production".into(),
         region: Some("cn-test".into()),
+        provider_application_id: None,
         provider_app_id: Some(format!("{provider}-app-id")),
         endpoint: Some(format!("https://rtc.{provider}.example")),
         credential_ref: Some(format!("secret://rtc/{provider}/credential")),
@@ -4233,10 +4319,12 @@ fn provider_credential_command(
     let credential_label = credential_label.into();
     RtcProviderCredentialCommand {
         credential_role,
+        credential_kind: None,
         credential_label: credential_label.clone(),
         credential_ref: format!("secret://rtc/{credential_label}"),
         credential_fingerprint: Some(format!("fingerprint:{credential_label}")),
         secret_version: Some("1".into()),
+        credential_secret: None,
         status: Some(sdkwork_communication_rtc_service::RtcProviderCredentialStatus::Active),
         valid_from: Some("2026-06-10T00:00:00.000Z".into()),
         expires_at: None,

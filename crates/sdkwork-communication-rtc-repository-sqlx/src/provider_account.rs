@@ -5,13 +5,9 @@ use sdkwork_communication_rtc_service::{
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
-use sqlx::{
-    Executor, PgPool, Postgres, Row, postgres::PgRow
-};
+use sqlx::{Executor, PgPool, Postgres, Row, postgres::PgRow};
 
 use crate::{RtcStorageError, RtcStorageResult};
-
-
 
 #[derive(Clone, Debug)]
 pub struct RtcPostgresProviderAccountRepository {
@@ -407,10 +403,15 @@ impl RtcPostgresProviderAccountRepository {
             .bind(&credential.provider_application_id)
             .bind(&credential.provider)
             .bind(provider_credential_role_to_i32(&credential.credential_role))
+            .bind(&credential.credential_kind)
             .bind(&credential.credential_label)
             .bind(&credential.credential_ref)
             .bind(&credential.credential_fingerprint)
             .bind(&credential.secret_version)
+            .bind(&credential.secret_ciphertext)
+            .bind(&credential.secret_key_id)
+            .bind(&credential.secret_algorithm)
+            .bind(&credential.secret_masked_label)
             .bind(provider_credential_status_to_i32(&credential.status))
             .bind(credential.valid_from.as_deref().unwrap_or(""))
             .bind(credential.expires_at.as_deref().unwrap_or(""))
@@ -670,9 +671,8 @@ impl RtcPostgresProviderAccountRepository {
             .filter(|value| !value.is_empty())
             .map(|value| format!("%{}%", value.to_ascii_lowercase()));
         if needle.is_some() {
-            where_parts.push(
-                "(LOWER(uuid) LIKE $4 OR LOWER(credential_label) LIKE $5)".to_string(),
-            );
+            where_parts
+                .push("(LOWER(uuid) LIKE $4 OR LOWER(credential_label) LIKE $5)".to_string());
         }
         let order_column = provider_credential_sort_column(sort_field);
         let direction = if sort_descending { "DESC" } else { "ASC" };
@@ -735,7 +735,6 @@ impl RtcPostgresProviderAccountRepository {
     }
 }
 
-
 fn postgres_upsert_provider_account_sql() -> &'static str {
     r#"
     INSERT INTO rtc_provider_account (
@@ -767,7 +766,6 @@ fn postgres_upsert_provider_account_sql() -> &'static str {
         deleted_by = excluded.deleted_by
     "#
 }
-
 
 fn postgres_upsert_provider_application_sql() -> &'static str {
     r#"
@@ -808,32 +806,38 @@ fn postgres_upsert_provider_application_sql() -> &'static str {
     "#
 }
 
-
 fn postgres_upsert_provider_credential_sql() -> &'static str {
     r#"
     INSERT INTO rtc_provider_credential (
         id, uuid, tenant_id, organization_id, provider_account_id, provider_application_id,
-        provider, credential_role, credential_label, credential_ref, credential_fingerprint,
-        secret_version, status, valid_from, expires_at, rotation_due_at, rotated_at,
-        revoked_at, last_verified_at, last_used_at, created_by, updated_by, created_at,
-        updated_at, version
+        provider, credential_role, credential_kind, credential_label, credential_ref,
+        credential_fingerprint, secret_version, secret_ciphertext, secret_key_id,
+        secret_algorithm, secret_masked_label, status, valid_from, expires_at,
+        rotation_due_at, rotated_at, revoked_at, last_verified_at, last_used_at,
+        created_by, updated_by, created_at, updated_at, version
     )
     VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-        NULLIF($14::text, '')::timestamp,
-        NULLIF($15::text, '')::timestamp,
-        NULLIF($16::text, '')::timestamp,
-        NULLIF($17::text, '')::timestamp,
-        NULLIF($18::text, '')::timestamp,
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+        $18,
         NULLIF($19::text, '')::timestamp,
         NULLIF($20::text, '')::timestamp,
-        $21, $22, $23::text::timestamp, $24::text::timestamp, $25
+        NULLIF($21::text, '')::timestamp,
+        NULLIF($22::text, '')::timestamp,
+        NULLIF($23::text, '')::timestamp,
+        NULLIF($24::text, '')::timestamp,
+        NULLIF($25::text, '')::timestamp,
+        $26, $27, $28::text::timestamp, $29::text::timestamp, $30
     )
     ON CONFLICT(provider_application_id, credential_role, credential_label) DO UPDATE SET
         uuid = excluded.uuid,
+        credential_kind = excluded.credential_kind,
         credential_ref = excluded.credential_ref,
         credential_fingerprint = excluded.credential_fingerprint,
         secret_version = excluded.secret_version,
+        secret_ciphertext = excluded.secret_ciphertext,
+        secret_key_id = excluded.secret_key_id,
+        secret_algorithm = excluded.secret_algorithm,
+        secret_masked_label = excluded.secret_masked_label,
         status = excluded.status,
         valid_from = excluded.valid_from,
         expires_at = excluded.expires_at,
@@ -1002,10 +1006,15 @@ fn provider_credential_select_columns_sql(where_clause: &str, order_clause: &str
             provider_application_id,
             provider,
             credential_role,
+            credential_kind,
             credential_label,
             credential_ref,
             credential_fingerprint,
             secret_version,
+            secret_ciphertext,
+            secret_key_id,
+            secret_algorithm,
+            secret_masked_label,
             status,
             valid_from,
             expires_at,
@@ -1040,10 +1049,15 @@ fn postgres_provider_credential_select_columns_sql(
             provider_application_id,
             provider,
             credential_role,
+            credential_kind,
             credential_label,
             credential_ref,
             credential_fingerprint,
             secret_version,
+            secret_ciphertext,
+            secret_key_id,
+            secret_algorithm,
+            secret_masked_label,
             status,
             to_char(valid_from AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS valid_from,
             to_char(expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS expires_at,
@@ -1063,7 +1077,6 @@ fn postgres_provider_credential_select_columns_sql(
         "#
     )
 }
-
 
 fn postgres_row_to_provider_account(row: PgRow) -> RtcStorageResult<RtcProviderAccount> {
     let status: i32 = row.try_get("status")?;
@@ -1092,7 +1105,6 @@ fn postgres_row_to_provider_account(row: PgRow) -> RtcStorageResult<RtcProviderA
         deleted_by: postgres_optional_i64_column_to_string(&row, "deleted_by")?,
     })
 }
-
 
 fn postgres_row_to_provider_application(row: PgRow) -> RtcStorageResult<RtcProviderApplication> {
     let status: i32 = row.try_get("status")?;
@@ -1129,7 +1141,6 @@ fn postgres_row_to_provider_application(row: PgRow) -> RtcStorageResult<RtcProvi
     })
 }
 
-
 fn postgres_row_to_provider_credential(row: PgRow) -> RtcStorageResult<RtcProviderCredential> {
     let credential_role: i32 = row.try_get("credential_role")?;
     let status: i32 = row.try_get("status")?;
@@ -1142,10 +1153,18 @@ fn postgres_row_to_provider_credential(row: PgRow) -> RtcStorageResult<RtcProvid
         provider_application_id: row.try_get("provider_application_id")?,
         provider: row.try_get("provider")?,
         credential_role: i32_to_provider_credential_role(credential_role)?,
+        credential_kind: row.try_get("credential_kind")?,
         credential_label: row.try_get("credential_label")?,
         credential_ref: row.try_get("credential_ref")?,
         credential_fingerprint: row.try_get("credential_fingerprint")?,
         secret_version: row.try_get("secret_version")?,
+        secret_configured: row
+            .try_get::<Option<String>, _>("secret_ciphertext")?
+            .is_some_and(|value| !value.trim().is_empty()),
+        secret_masked_label: row.try_get("secret_masked_label")?,
+        secret_ciphertext: row.try_get("secret_ciphertext")?,
+        secret_key_id: row.try_get("secret_key_id")?,
+        secret_algorithm: row.try_get("secret_algorithm")?,
         status: i32_to_provider_credential_status(status)?,
         valid_from: row.try_get("valid_from")?,
         expires_at: row.try_get("expires_at")?,
@@ -1224,8 +1243,6 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
 fn option_string_to_i64(field: &'static str, value: Option<&str>) -> RtcStorageResult<Option<i64>> {
     value.map(|inner| parse_i64_field(field, inner)).transpose()
 }
-
-
 
 fn postgres_i64_column_to_string(row: &PgRow, column: &'static str) -> RtcStorageResult<String> {
     let value: i64 = row.try_get(column)?;
@@ -1357,4 +1374,3 @@ fn provider_credential_sort_column(field: &str) -> &'static str {
         _ => "uuid",
     }
 }
-

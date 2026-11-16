@@ -1,6 +1,10 @@
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 
 import type { ProviderProfile, ProviderProfileCommand } from "../types/providerProfile";
+import type {
+  ProviderProfileVerifyResult,
+  ProviderVerifyMode,
+} from "../types/adminServices";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 interface ListResponse {
@@ -85,14 +89,16 @@ export class ProviderProfileService {
     return response;
   }
 
-  async verify(id: string, queryKind: string, timeoutMs?: number): Promise<unknown> {
+  async verify(
+    id: string,
+    queryKind: ProviderVerifyMode,
+    timeoutMs?: number,
+  ): Promise<ProviderProfileVerifyResult> {
     const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.verify(id, {
-      queryKind: queryKind as Parameters<
-        typeof this.client.rtcProviderProfiles.rtc.providerProfiles.verify
-      >[1]["queryKind"],
+      queryKind,
       timeoutMs,
     });
-    return response;
+    return response as ProviderProfileVerifyResult;
   }
 
   async configureCapabilities(

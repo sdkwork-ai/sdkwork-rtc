@@ -9,6 +9,8 @@ export interface RtcProviderProfileCommand {
   priority?: number;
   environment: 'production' | 'staging' | 'development' | 'test' | 'sandbox';
   region?: string | null;
+  /** Linked RTC provider application that owns the credential material. */
+  providerApplicationId?: string | null;
   providerAppId?: string | null;
   endpoint?: string | null;
   credentialRef?: string | null;

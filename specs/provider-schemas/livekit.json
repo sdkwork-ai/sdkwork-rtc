@@ -19,6 +19,14 @@
       "fields": [
         {"key": "credentialRef", "label": "API Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/livekit/api-secret"}
       ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/livekit/webhook"}
+      ]
     }
   ],
   "profileFields": [

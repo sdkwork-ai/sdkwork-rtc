@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "af354d4f011fcaa0777a7ee1966857f7531273c5c040e92017bbdac3f3f0d4d5"
+      "sha256": "5dc8e975aca13d84d80ffae922d9403e5a3aadc583ed6022dc3483345a52711d"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -120,7 +120,7 @@
     },
     {
       "path": "src/http/client.ts",
-      "sha256": "bab0f740731f04f1f6e3c591cba91b1577f0ca521054d187755f437925d3dc6d"
+      "sha256": "f1ea217a297c06829738cc98bb177cd4427b0e5c647dab6accf2047134ce9765"
     },
     {
       "path": "src/http/index.ts",
@@ -308,7 +308,7 @@
     },
     {
       "path": "src/types/rtc-provider-credential-command.ts",
-      "sha256": "81151979ab8061e3f8e1759110269a0db08d7d4e0fa2d82cb5a76a1099f25123"
+      "sha256": "a89eb62214db62fddcdf54fed687b94b9d3ee60558aaaecd6e23ced4545ae006"
     },
     {
       "path": "src/types/rtc-provider-credential-list-response.ts",
@@ -328,7 +328,7 @@
     },
     {
       "path": "src/types/rtc-provider-credential.ts",
-      "sha256": "64ffae70a1e3d79d6158ecd6e7311a1c0a7e76e327c0d28e59b29268a2d14f5b"
+      "sha256": "17912443ec27551c26a65f7fa8e41b995e596c2917a21f7974bc55fd0b8ec75e"
     },
     {
       "path": "src/types/rtc-provider-plugin-descriptor.ts",
@@ -344,7 +344,7 @@
     },
     {
       "path": "src/types/rtc-provider-profile-command.ts",
-      "sha256": "6b24b239d765a2a94ba3009b4e28e5e6d9b76a1aa03a8002f4ac2076f18d8912"
+      "sha256": "24e1a1b27aa9e253c9284b64c6a6c1db5286e98e8bc3d3acd77408bfbc465914"
     },
     {
       "path": "src/types/rtc-provider-profile-disable-request.ts",
@@ -376,7 +376,7 @@
     },
     {
       "path": "src/types/rtc-provider-profile.ts",
-      "sha256": "8b7ddcc32b8eab3129b81d32c9822b241428073258831f9917a312e691e34dd4"
+      "sha256": "ce2a29b5d2b37239db308887ffd8283530e55ffc51f20e6bb6993c1a96a5100e"
     },
     {
       "path": "src/types/rtc-provider-query-job-create-request.ts",
@@ -464,7 +464,7 @@
     },
     {
       "path": "tsconfig.json",
-      "sha256": "7c8a6c2b00fb208ec28e1e6045194487d1b3e563d6c44cef4783fd4fe0e8ffad"
+      "sha256": "35f6f0baf03ca4245339f0a532b02c6b0c8e64d66852a2f77d38ae063b2024b8"
     }
   ],
   "scaffoldFiles": [

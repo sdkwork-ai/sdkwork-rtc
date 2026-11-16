@@ -33,10 +33,10 @@ use sdkwork_communication_rtc_service::{
     build_session_token_grant_from_credential, evaluate_recording_lifecycle_action,
     load_recording_policy_settings_from_env, media_session_create_idempotency_payload_hash,
     media_session_idempotency_record_id, participant_credential_issue_idempotency_key,
-    participant_credential_issue_idempotency_payload_hash, provider_credential_signing_ready,
-    recording_lifecycle_cutoff_rfc3339, rfc3339_age_ms,
-    rtc_allows_development_provider_placeholders, rtc_allows_in_memory_only_runtime,
-    session_reconcile_cutoff_rfc3339, utc_now_rfc3339_millis, validate_provider_webhook_freshness,
+    participant_credential_issue_idempotency_payload_hash, recording_lifecycle_cutoff_rfc3339,
+    rfc3339_age_ms, rtc_allows_development_provider_placeholders,
+    rtc_allows_in_memory_only_runtime, session_reconcile_cutoff_rfc3339, utc_now_rfc3339_millis,
+    validate_provider_webhook_freshness,
 };
 use sdkwork_routes_rtc_app_api::service::{
     RtcActiveProviderProfileListData, RtcAppApiError, RtcAppApiFuture, RtcAppApiService,
@@ -57,7 +57,8 @@ use sdkwork_routes_rtc_backend_api::service::{
 };
 
 use crate::plugin_registry::{RtcProviderPluginRegistry, RtcProviderPluginRegistryError};
-use crate::secret_resolver::{EnvRtcSecretResolver, SharedRtcSecretResolver};
+use crate::secret_envelope;
+use crate::secret_resolver::{RtcSecretStore, SharedRtcSecretResolver};
 
 const RTC_PROVIDER_ROUTE_TYPE_REGION: &str = "region";
 const RTC_SESSION_RECONCILE_ACTOR: &str = "rtc-session-reconciliation";
@@ -83,6 +84,7 @@ pub struct RtcProductService {
     persistence: Arc<dyn RtcPersistencePort>,
     persistence_enabled: bool,
     secret_resolver: SharedRtcSecretResolver,
+    secret_store: Arc<RtcSecretStore>,
     active_session_tracker: RtcActiveSessionTracker,
     // std::sync::Mutex is used intentionally: all lock guards are dropped before
     // any .await point, so this never blocks the async runtime executor.
@@ -91,11 +93,14 @@ pub struct RtcProductService {
 
 impl RtcProductService {
     pub fn new(registry: RtcProviderPluginRegistry) -> Self {
+        let secret_store = Arc::new(RtcSecretStore::new());
+        let secret_resolver: SharedRtcSecretResolver = secret_store.clone();
         Self {
             registry,
             persistence: Arc::new(NoopRtcPersistencePort),
             persistence_enabled: false,
-            secret_resolver: Arc::new(EnvRtcSecretResolver),
+            secret_resolver,
+            secret_store,
             active_session_tracker: RtcActiveSessionTracker::default(),
             state: Arc::new(Mutex::new(RtcProductState::default())),
         }
@@ -110,6 +115,11 @@ impl RtcProductService {
     pub fn with_secret_resolver(mut self, secret_resolver: SharedRtcSecretResolver) -> Self {
         self.secret_resolver = secret_resolver;
         self
+    }
+
+    /// Runtime secret store populated from sealed provider credentials.
+    pub fn secret_store(&self) -> Arc<RtcSecretStore> {
+        self.secret_store.clone()
     }
 
     pub async fn hydrate_from_persistence(
@@ -171,7 +181,13 @@ impl RtcProductService {
                 .provider_applications
                 .insert(application.id.clone(), application);
         }
+        let mut sealed_credentials = Vec::new();
         for credential in snapshot.provider_credentials {
+            if let Some(secret_ciphertext) = credential.secret_ciphertext.clone() {
+                if !secret_ciphertext.trim().is_empty() {
+                    sealed_credentials.push((credential.credential_ref.clone(), secret_ciphertext));
+                }
+            }
             state
                 .provider_credentials
                 .insert(credential.id.clone(), credential);
@@ -210,6 +226,11 @@ impl RtcProductService {
             );
         }
         drop(state);
+        for (secret_ref, secret_ciphertext) in sealed_credentials {
+            if let Ok(plaintext) = secret_envelope::open(&secret_ciphertext) {
+                self.secret_store.insert(&secret_ref, &plaintext);
+            }
+        }
         for (tenant_id, session_id) in active_sessions {
             self.active_session_tracker
                 .open(tenant_id.as_str(), session_id.as_str());
@@ -1063,17 +1084,19 @@ impl RtcProductService {
             .registry
             .provider(provider_key.as_str())
             .map_err(app_error_from_registry)?;
-        let credential_context = {
+        let (credential_context, profile_signing_ready) = {
             let state = self.state.lock().expect("rtc product state lock");
             let profile = session
                 .provider_profile_id
                 .as_deref()
                 .and_then(|profile_id| state.provider_profiles.get(profile_id));
-            build_participant_credential_context(profile, self.secret_resolver.as_ref())
-                .map_err(app_error_from_product)?
+            let context =
+                build_participant_credential_context(profile, self.secret_resolver.as_ref())
+                    .map_err(app_error_from_product)?;
+            let ready = profile.is_some_and(|profile| self.provider_profile_signing_ready(profile));
+            (context, ready)
         };
-        let health = provider.provider_health_snapshot();
-        if !provider_credential_signing_ready(&health) {
+        if !profile_signing_ready {
             return Err(RtcAppApiError::Unavailable(format!(
                 "RTC provider {provider_key} requires signed credentials in this environment"
             )));
@@ -1676,7 +1699,7 @@ impl RtcProductService {
             request.provider_application_id_kind.as_str(),
         )?;
         let now = utc_now_rfc3339_millis();
-        let (application, account) = {
+        let (application, account, linked_profiles) = {
             let mut state = self.state.lock().expect("rtc product state lock");
             let organization_id = organization_id.unwrap_or_else(|| "0".to_string());
             let (account_id, is_update) =
@@ -1739,14 +1762,6 @@ impl RtcProductService {
             {
                 return Err(RtcBackendApiError::BadRequest(format!(
                     "RTC provider application code cannot be changed: {}",
-                    existing_application.id
-                )));
-            }
-            if let Some(existing_application) = existing_application.as_ref()
-                && existing_application.provider_application_id != provider_application_value
-            {
-                return Err(RtcBackendApiError::BadRequest(format!(
-                    "RTC provider application id cannot be changed: {}",
                     existing_application.id
                 )));
             }
@@ -1823,11 +1838,25 @@ impl RtcProductService {
                 &now,
             );
             state.provider_applications.insert(id, application.clone());
-            (application, account)
+            let mut linked_profiles = Vec::new();
+            for profile in state.provider_profiles.values_mut() {
+                if profile.provider_application_id.as_deref() == Some(application.id.as_str())
+                    && profile.provider_app_id.as_deref()
+                        != Some(application.provider_application_id.as_str())
+                {
+                    profile.provider_app_id = Some(application.provider_application_id.clone());
+                    profile.updated_at = Some(now.clone());
+                    profile.updated_by = application.updated_by.clone();
+                    profile.version = next_version(Some(profile.version.as_str()));
+                    linked_profiles.push(profile.clone());
+                }
+            }
+            (application, account, linked_profiles)
         };
         self.persist_changes(RtcPersistenceChangeSet {
             provider_accounts: vec![account],
             provider_applications: vec![application.clone()],
+            provider_profiles: linked_profiles,
             ..RtcPersistenceChangeSet::default()
         })
         .await
@@ -1962,6 +1991,25 @@ impl RtcProductService {
         let credential_ref =
             normalized_required_string("provider credential ref", request.credential_ref.as_str())?;
         ensure_secret_reference("credential ref", credential_ref.as_str())?;
+        let credential_secret = request
+            .credential_secret
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        if request.credential_secret.is_some() && credential_secret.is_none() {
+            return Err(RtcBackendApiError::BadRequest(
+                "RTC provider credential secret must not be blank".to_string(),
+            ));
+        }
+        let sealed_secret = match credential_secret.as_deref() {
+            Some(secret) => Some(secret_envelope::seal(secret).map_err(|error| {
+                RtcBackendApiError::Unavailable(format!(
+                    "RTC provider credential secret cannot be stored: {error}"
+                ))
+            })?),
+            None => None,
+        };
         if matches!(
             request.status.as_ref(),
             Some(RtcProviderCredentialStatus::Revoked)
@@ -2052,8 +2100,11 @@ impl RtcProductService {
                     conflicting_credential.id
                 )));
             }
-            let credential_fingerprint =
-                normalized_optional_string(request.credential_fingerprint.as_deref());
+            let credential_fingerprint = sealed_secret
+                .as_ref()
+                .map(|secret| secret.fingerprint.clone())
+                .or_else(|| normalized_optional_string(request.credential_fingerprint.as_deref()));
+            let credential_kind = normalized_optional_string(request.credential_kind.as_deref());
             let secret_version = normalized_optional_string(request.secret_version.as_deref());
             let existing_credential = state.provider_credentials.get(id.as_str()).cloned();
             if let Some(existing_credential) = existing_credential.as_ref()
@@ -2099,6 +2150,38 @@ impl RtcProductService {
             } else {
                 None
             };
+            let secret_ciphertext = sealed_secret
+                .as_ref()
+                .map(|secret| secret.ciphertext.clone())
+                .or_else(|| {
+                    existing_credential
+                        .as_ref()
+                        .and_then(|credential| credential.secret_ciphertext.clone())
+                });
+            let secret_key_id = sealed_secret
+                .as_ref()
+                .map(|secret| secret.key_id.clone())
+                .or_else(|| {
+                    existing_credential
+                        .as_ref()
+                        .and_then(|credential| credential.secret_key_id.clone())
+                });
+            let secret_algorithm = sealed_secret
+                .as_ref()
+                .map(|secret| secret.algorithm.clone())
+                .or_else(|| {
+                    existing_credential
+                        .as_ref()
+                        .and_then(|credential| credential.secret_algorithm.clone())
+                });
+            let secret_masked_label = sealed_secret
+                .as_ref()
+                .map(|secret| secret.masked_label.clone())
+                .or_else(|| {
+                    existing_credential
+                        .as_ref()
+                        .and_then(|credential| credential.secret_masked_label.clone())
+                });
             let credential = RtcProviderCredential {
                 id: id.clone(),
                 tenant_id,
@@ -2107,10 +2190,16 @@ impl RtcProductService {
                 provider_application_id: application.id.clone(),
                 provider: application.provider.clone(),
                 credential_role: request.credential_role,
+                credential_kind,
                 credential_label,
                 credential_ref,
                 credential_fingerprint,
                 secret_version,
+                secret_configured: secret_ciphertext.is_some(),
+                secret_masked_label,
+                secret_ciphertext,
+                secret_key_id,
+                secret_algorithm,
                 status: request
                     .status
                     .unwrap_or(RtcProviderCredentialStatus::Active),
@@ -2158,6 +2247,10 @@ impl RtcProductService {
         })
         .await
         .map_err(backend_error_from_product)?;
+        if let Some(secret) = credential_secret.as_deref() {
+            self.secret_store
+                .insert(credential.credential_ref.as_str(), secret);
+        }
         Ok(credential)
     }
 
@@ -2239,6 +2332,15 @@ impl RtcProductService {
         })
         .await
         .map_err(backend_error_from_product)?;
+        let ref_still_active = {
+            let state = self.state.lock().expect("rtc product state lock");
+            state.provider_credentials.values().any(|candidate| {
+                candidate.credential_ref == credential.credential_ref && candidate.is_active()
+            })
+        };
+        if !ref_still_active {
+            self.secret_store.remove(credential.credential_ref.as_str());
+        }
         Ok(credential)
     }
 
@@ -2259,6 +2361,23 @@ impl RtcProductService {
         if let Some(webhook_secret_ref) = request.webhook_secret_ref.as_deref() {
             ensure_secret_reference("webhook secret ref", webhook_secret_ref)?;
         }
+        if request.code.trim().is_empty() {
+            return Err(RtcBackendApiError::BadRequest(
+                "RTC provider profile code is required".to_string(),
+            ));
+        }
+        if request.name.trim().is_empty() {
+            return Err(RtcBackendApiError::BadRequest(
+                "RTC provider profile name is required".to_string(),
+            ));
+        }
+        if request.environment.trim().is_empty() {
+            return Err(RtcBackendApiError::BadRequest(
+                "RTC provider profile environment is required".to_string(),
+            ));
+        }
+        let provider_application_id =
+            normalized_optional_string(request.provider_application_id.as_deref());
         let now = utc_now_rfc3339_millis();
         let organization_id = organization_id.unwrap_or_else(|| "0".to_string());
         let is_update = provider_profile_id.is_some();
@@ -2329,6 +2448,31 @@ impl RtcProductService {
                     .as_ref()
                     .map(|profile| profile.version.as_str()),
             );
+            let linked_provider_app_id = match provider_application_id.as_deref() {
+                Some(application_id) => {
+                    let application = state
+                        .provider_applications
+                        .get(application_id)
+                        .filter(|application| {
+                            application.tenant_id == tenant_id
+                                && application.organization_id == organization_id
+                                && application.deleted_at.is_none()
+                        })
+                        .ok_or_else(|| {
+                            RtcBackendApiError::NotFound(format!(
+                                "RTC provider application not found: {application_id}"
+                            ))
+                        })?;
+                    if application.provider != request.provider {
+                        return Err(RtcBackendApiError::BadRequest(format!(
+                            "RTC provider application {} belongs to provider {}, not {}",
+                            application.id, application.provider, request.provider
+                        )));
+                    }
+                    Some(application.provider_application_id.clone())
+                }
+                None => None,
+            };
             let profile = RtcProviderProfile {
                 id: id.clone(),
                 tenant_id,
@@ -2341,7 +2485,11 @@ impl RtcProductService {
                 priority: request.priority,
                 environment: request.environment,
                 region: request.region,
-                provider_app_id: request.provider_app_id,
+                provider_application_id,
+                provider_app_id: non_empty_optional(request.provider_app_id.as_deref())
+                    .then_some(request.provider_app_id)
+                    .flatten()
+                    .or(linked_provider_app_id),
                 endpoint: request.endpoint,
                 credential_ref: request.credential_ref,
                 credential_fingerprint: existing_profile
@@ -2458,8 +2606,12 @@ impl RtcProductService {
         let verification_started_at = Instant::now();
         let health = provider.provider_health_snapshot();
         let verified_at = health.checked_at.clone();
-        let mut checks =
-            build_provider_profile_verify_checks(&profile, &health, &request.query_kind);
+        let mut checks = build_provider_profile_verify_checks(
+            &profile,
+            &health,
+            &request.query_kind,
+            self.secret_resolver.as_ref(),
+        );
         let latency_ms = elapsed_millis_u32(verification_started_at);
         if let Some(timeout_ms) = request.timeout_ms
             && latency_ms > timeout_ms
@@ -3285,6 +3437,18 @@ impl RtcProductService {
             if state.provider_profiles.contains_key(id.as_str()) {
                 continue;
             }
+            // A seeded or operator-managed profile for the same provider/code
+            // is the runtime authority; never shadow it with the synthetic
+            // plugin-default profile (the synthetic one has no credentialRef).
+            if state.provider_profiles.values().any(|profile| {
+                profile.tenant_id == tenant_id
+                    && profile.organization_id == organization_id
+                    && profile.provider == descriptor.provider_kind
+                    && profile.code == "default"
+                    && profile.deleted_at.is_none()
+            }) {
+                continue;
+            }
             let profile = profile_from_descriptor(tenant_id, organization_id, descriptor);
             if profile.is_default && profile.status == RtcProviderProfileStatus::Active {
                 clear_scoped_default_provider_profiles(
@@ -3298,14 +3462,22 @@ impl RtcProductService {
         }
     }
 
-    fn provider_credential_signing_ready_for_key(
-        &self,
-        provider_key: &str,
-    ) -> Result<bool, RtcProductError> {
-        let provider = self.registry.provider(provider_key)?;
-        Ok(provider_credential_signing_ready(
-            &provider.provider_health_snapshot(),
-        ))
+    fn provider_profile_signing_ready(&self, profile: &RtcProviderProfile) -> bool {
+        if rtc_allows_development_provider_placeholders() {
+            return true;
+        }
+        let Some(credential_ref) = profile
+            .credential_ref
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        else {
+            return false;
+        };
+        self.secret_resolver
+            .resolve_secret(credential_ref)
+            .map(|secret| !secret.trim().is_empty())
+            .unwrap_or(false)
     }
 
     fn select_provider(
@@ -3331,7 +3503,7 @@ impl RtcProductService {
                 tenant_id,
                 organization_id,
                 provider,
-                Some(self.provider_credential_signing_ready_for_key(profile.provider.as_str())?),
+                Some(self.provider_profile_signing_ready(profile)),
             )?;
             return Ok((profile.provider.clone(), profile.id.clone()));
         }
@@ -3798,10 +3970,7 @@ impl RtcProductService {
                 tenant_id,
                 organization_id,
                 Some(request.provider.as_str()),
-                Some(
-                    self.provider_credential_signing_ready_for_key(profile.provider.as_str())
-                        .map_err(backend_error_from_product)?,
-                ),
+                Some(self.provider_profile_signing_ready(profile)),
             )
             .map_err(backend_error_from_product)?;
         }
@@ -3830,10 +3999,7 @@ impl RtcProductService {
                 tenant_id,
                 organization_id,
                 Some(request.provider.as_str()),
-                Some(
-                    self.provider_credential_signing_ready_for_key(profile.provider.as_str())
-                        .map_err(backend_error_from_product)?,
-                ),
+                Some(self.provider_profile_signing_ready(profile)),
             )
             .map_err(backend_error_from_product)?;
 
@@ -3882,10 +4048,7 @@ impl RtcProductService {
                 tenant_id,
                 organization_id,
                 Some(request.provider.as_str()),
-                Some(
-                    self.provider_credential_signing_ready_for_key(profile.provider.as_str())
-                        .map_err(backend_error_from_product)?,
-                ),
+                Some(self.provider_profile_signing_ready(profile)),
             )
             .map_err(backend_error_from_product)?;
 
@@ -5564,7 +5727,20 @@ impl RtcBackendApiService for RtcProductService {
                         profile.id
                     )));
                 }
-                let id = state.next_provider_route_id();
+                let id = provider_route_id_for(
+                    tenant_id.as_str(),
+                    organization_id.as_str(),
+                    request.provider_profile_id.as_str(),
+                    route_type.as_str(),
+                    region.as_deref().unwrap_or_default(),
+                );
+                if state.provider_routes.contains_key(id.as_str()) {
+                    return Err(RtcBackendApiError::Conflict(format!(
+                        "RTC provider route already exists for region {} on profile {}",
+                        region.as_deref().unwrap_or_default(),
+                        request.provider_profile_id
+                    )));
+                }
                 let route = RtcProviderRoute {
                     id: id.clone(),
                     tenant_id,
@@ -6216,7 +6392,6 @@ struct RtcProductState {
     webhook_dedupe_keys: std::collections::BTreeSet<String>,
     next_artifact_sequence: u64,
     next_provider_query_snapshot_sequence: u64,
-    next_provider_route_sequence: u64,
 }
 
 impl RtcProductState {
@@ -6231,11 +6406,6 @@ impl RtcProductState {
             "provider-query-snapshot-{}",
             self.next_provider_query_snapshot_sequence
         )
-    }
-
-    fn next_provider_route_id(&mut self) -> String {
-        self.next_provider_route_sequence += 1;
-        format!("provider-route-{}", self.next_provider_route_sequence)
     }
 }
 
@@ -6385,7 +6555,7 @@ fn provider_account_id_for(
 }
 
 fn provider_application_id_for(provider_account_id: &str, code: &str) -> String {
-    format!("provider-application-{provider_account_id}-{code}")
+    stable_provider_id("provider-application", &[provider_account_id, code])
 }
 
 fn provider_credential_id_for(
@@ -6393,10 +6563,46 @@ fn provider_credential_id_for(
     role: &RtcProviderCredentialRole,
     label: &str,
 ) -> String {
-    format!(
-        "provider-credential-{provider_application_id}-{}-{label}",
-        provider_credential_role_key(role)
+    stable_provider_id(
+        "provider-credential",
+        &[
+            provider_application_id,
+            provider_credential_role_key(role),
+            label,
+        ],
     )
+}
+
+fn provider_route_id_for(
+    tenant_id: &str,
+    organization_id: &str,
+    provider_profile_id: &str,
+    route_type: &str,
+    region: &str,
+) -> String {
+    stable_provider_id(
+        "provider-route",
+        &[
+            tenant_id,
+            organization_id,
+            provider_profile_id,
+            route_type,
+            region,
+        ],
+    )
+}
+
+/// Bounded deterministic provider identifier.
+///
+/// Nested identifiers built by concatenating account/application ids exceed the
+/// 64-character `uuid VARCHAR(64)` column, so every composite provider id uses
+/// a stable UUIDv5 over its natural key instead. The result is 32 hex
+/// characters, always below the column width and below the JavaScript-safe
+/// integer range because it is a string.
+fn stable_provider_id(namespace: &str, parts: &[&str]) -> String {
+    let key = format!("sdkwork-rtc:{namespace}:{}", parts.join("\u{1f}"));
+    let uuid = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, key.as_bytes());
+    format!("{namespace}-{}", uuid.simple())
 }
 
 fn next_version(existing_version: Option<&str>) -> String {
@@ -7379,6 +7585,7 @@ fn profile_from_descriptor(
         priority: if descriptor.default_selected { 0 } else { 100 },
         environment: "runtime".to_string(),
         region: None,
+        provider_application_id: None,
         provider_app_id: None,
         endpoint: None,
         credential_ref: None,
@@ -7421,6 +7628,7 @@ fn build_provider_profile_verify_checks(
     profile: &RtcProviderProfile,
     health: &ProviderHealthSnapshot,
     query_kind: &RtcProviderProfileVerifyKind,
+    secret_resolver: &dyn crate::secret_resolver::RtcSecretResolver,
 ) -> Vec<RtcProviderProfileVerifyCheck> {
     let mut checks = vec![provider_profile_verify_check(
         "provider_health",
@@ -7438,8 +7646,17 @@ fn build_provider_profile_verify_checks(
         query_kind,
         RtcProviderProfileVerifyKind::Credential | RtcProviderProfileVerifyKind::Full
     ) {
-        let credential_ready = non_empty_optional(profile.credential_ref.as_deref())
-            && non_empty_optional(profile.provider_app_id.as_deref());
+        let credential_ref = profile
+            .credential_ref
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let credential_configured =
+            credential_ref.is_some() && non_empty_optional(profile.provider_app_id.as_deref());
+        let credential_resolved = credential_ref
+            .and_then(|credential_ref| secret_resolver.resolve_secret(credential_ref).ok())
+            .is_some_and(|secret| !secret.trim().is_empty());
+        let credential_ready = credential_configured && credential_resolved;
         checks.push(provider_profile_verify_check(
             "credential_reference",
             if credential_ready {
@@ -7448,7 +7665,11 @@ fn build_provider_profile_verify_checks(
                 RtcProviderProfileVerifyCheckStatus::Failed
             },
             Some(if credential_ready {
-                "credentialRef and providerAppId are configured".to_string()
+                "credentialRef and providerAppId are configured and the provider secret is available"
+                    .to_string()
+            } else if credential_configured {
+                "providerAppId and credentialRef are configured but the provider secret is not available; enter the provider secret in the admin console"
+                    .to_string()
             } else {
                 "credentialRef and providerAppId are required for RTC provider credentials"
                     .to_string()

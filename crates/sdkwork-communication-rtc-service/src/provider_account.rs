@@ -149,10 +149,23 @@ pub struct RtcProviderCredential {
     pub provider_application_id: String,
     pub provider: String,
     pub credential_role: RtcProviderCredentialRole,
+    pub credential_kind: Option<String>,
     pub credential_label: String,
     pub credential_ref: String,
     pub credential_fingerprint: Option<String>,
     pub secret_version: Option<String>,
+    /// Whether sealed secret material is stored for this credential. Raw
+    /// provider secrets are never returned by the RTC API.
+    pub secret_configured: bool,
+    /// Non-reversible preview of the stored secret (for example `AKID****EKEY`).
+    pub secret_masked_label: Option<String>,
+    /// Sealed (AES-256-GCM) secret material. Never serialized to the API.
+    #[serde(skip)]
+    pub secret_ciphertext: Option<String>,
+    #[serde(skip)]
+    pub secret_key_id: Option<String>,
+    #[serde(skip)]
+    pub secret_algorithm: Option<String>,
     pub status: RtcProviderCredentialStatus,
     pub valid_from: Option<String>,
     pub expires_at: Option<String>,
@@ -172,10 +185,14 @@ pub struct RtcProviderCredential {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RtcProviderCredentialCommand {
     pub credential_role: RtcProviderCredentialRole,
+    pub credential_kind: Option<String>,
     pub credential_label: String,
     pub credential_ref: String,
     pub credential_fingerprint: Option<String>,
     pub secret_version: Option<String>,
+    /// Write-only raw provider secret. The service seals it with the deployment
+    /// master secret before persistence and never echoes it back.
+    pub credential_secret: Option<String>,
     pub status: Option<RtcProviderCredentialStatus>,
     pub valid_from: Option<String>,
     pub expires_at: Option<String>,

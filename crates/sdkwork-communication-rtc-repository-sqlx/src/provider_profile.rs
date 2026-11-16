@@ -4,13 +4,9 @@ use sdkwork_communication_rtc_service::{
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
-use sqlx::{
-    Executor, PgPool, Postgres, Row, postgres::PgRow
-};
+use sqlx::{Executor, PgPool, Postgres, Row, postgres::PgRow};
 
 use crate::{RtcStorageError, RtcStorageResult};
-
-
 
 #[derive(Clone, Debug)]
 pub struct RtcPostgresProviderProfileRepository {
@@ -56,6 +52,7 @@ impl RtcPostgresProviderProfileRepository {
             .bind(profile.priority)
             .bind(&profile.environment)
             .bind(&profile.region)
+            .bind(&profile.provider_application_id)
             .bind(&profile.provider_app_id)
             .bind(&profile.endpoint)
             .bind(&profile.credential_ref)
@@ -405,7 +402,6 @@ impl RtcPostgresProviderProfileRepository {
     }
 }
 
-
 fn postgres_upsert_provider_profile_sql() -> &'static str {
     r#"
     INSERT INTO rtc_provider_profile (
@@ -421,6 +417,7 @@ fn postgres_upsert_provider_profile_sql() -> &'static str {
         priority,
         environment,
         region,
+        provider_application_id,
         provider_app_id,
         endpoint,
         credential_ref,
@@ -463,16 +460,17 @@ fn postgres_upsert_provider_profile_sql() -> &'static str {
         $19,
         $20,
         $21,
-        NULLIF($22::text, '')::timestamp,
-        $23,
+        $22,
+        NULLIF($23::text, '')::timestamp,
         $24,
         $25,
         $26,
-        $27::text::timestamp,
+        $27,
         $28::text::timestamp,
-        $29,
-        NULLIF($30::text, '')::timestamp,
-        $31
+        $29::text::timestamp,
+        $30,
+        NULLIF($31::text, '')::timestamp,
+        $32
     )
     ON CONFLICT(tenant_id, organization_id, provider, code) DO UPDATE SET
         uuid = excluded.uuid,
@@ -482,6 +480,7 @@ fn postgres_upsert_provider_profile_sql() -> &'static str {
         priority = excluded.priority,
         environment = excluded.environment,
         region = excluded.region,
+        provider_application_id = excluded.provider_application_id,
         provider_app_id = excluded.provider_app_id,
         endpoint = excluded.endpoint,
         credential_ref = excluded.credential_ref,
@@ -517,6 +516,7 @@ fn provider_profile_select_columns_sql(where_clause: &str, order_clause: &str) -
             priority,
             environment,
             region,
+            provider_application_id,
             provider_app_id,
             endpoint,
             credential_ref,
@@ -558,6 +558,7 @@ fn postgres_provider_profile_select_columns_sql(where_clause: &str, order_clause
             priority,
             environment,
             region,
+            provider_application_id,
             provider_app_id,
             endpoint,
             credential_ref,
@@ -584,7 +585,6 @@ fn postgres_provider_profile_select_columns_sql(where_clause: &str, order_clause
     )
 }
 
-
 fn postgres_row_to_provider_profile(row: PgRow) -> RtcStorageResult<RtcProviderProfile> {
     let status: i32 = row.try_get("status")?;
     let health_status: i32 = row.try_get("health_status")?;
@@ -605,6 +605,7 @@ fn postgres_row_to_provider_profile(row: PgRow) -> RtcStorageResult<RtcProviderP
         priority: row.try_get("priority")?,
         environment: row.try_get("environment")?,
         region: row.try_get("region")?,
+        provider_application_id: row.try_get("provider_application_id")?,
         provider_app_id: row.try_get("provider_app_id")?,
         endpoint: row.try_get("endpoint")?,
         credential_ref: row.try_get("credential_ref")?,
@@ -682,9 +683,6 @@ fn u32_to_i64(value: u32) -> i64 {
     i64::from(value)
 }
 
-
-
-
 fn postgres_i64_column_to_string(row: &PgRow, column: &'static str) -> RtcStorageResult<String> {
     let value: i64 = row.try_get(column)?;
     Ok(value.to_string())
@@ -758,4 +756,3 @@ fn provider_profile_sort_column(field: &str) -> &'static str {
         _ => "uuid",
     }
 }
-

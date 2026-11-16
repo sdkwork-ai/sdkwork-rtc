@@ -5,7 +5,7 @@ export type ProviderRoute = RtcProviderRoute;
 
 export interface ProviderRouteCommand {
   providerProfileId: string;
-  routeType: string;
+  routeType: "region";
   region?: string;
   priority: number;
   status?: "active" | "disabled";

@@ -9,7 +9,7 @@
   ],
   "applicationFields": [
     {"key": "providerApplicationId", "label": "SDKAppId", "type": "number", "required": true, "placeholder": "如 1400000000"},
-    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["sdk_app_id"], "default": "sdk_app_id", "hidden": true},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["tencent_sdk_app_id"], "default": "tencent_sdk_app_id", "hidden": true},
     {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.tencent.local/session", "required": false},
     {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://trtc.tencentcloudapi.com"},
     {"key": "apiHost", "label": "API主机", "type": "string", "default": "trtc.tencentcloudapi.com"},

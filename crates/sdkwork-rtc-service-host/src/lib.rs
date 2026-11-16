@@ -2,6 +2,7 @@ pub mod drive_importer;
 pub mod in_memory;
 pub mod plugin_registry;
 pub mod resilient_provider;
+pub mod secret_envelope;
 pub mod secret_resolver;
 pub mod service;
 
@@ -12,9 +13,10 @@ pub use drive_importer::{
 pub use in_memory::InMemoryRtcRepository;
 pub use plugin_registry::{RtcProviderPluginRegistry, RtcProviderPluginRegistryError};
 pub use sdkwork_communication_rtc_service::RtcRecordingArtifactLifecycleReconcileResult;
+pub use secret_envelope::{RtcSecretEnvelopeError, SealedRtcSecret};
 pub use secret_resolver::{
     EnvRtcSecretResolver, MapRtcSecretResolver, RtcSecretResolver, RtcSecretResolverError,
-    SharedRtcSecretResolver,
+    RtcSecretStore, SharedRtcSecretResolver,
 };
 pub use service::RtcProductService;
 pub use service::RtcSessionReconcileResult;

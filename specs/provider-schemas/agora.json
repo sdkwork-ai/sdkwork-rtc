@@ -18,6 +18,14 @@
       "fields": [
         {"key": "credentialRef", "label": "App Certificate", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/agora/app-certificate"}
       ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/agora/webhook"}
+      ]
     }
   ],
   "profileFields": [

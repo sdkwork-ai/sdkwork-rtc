@@ -192,4 +192,16 @@ export { RtcAdminCenterWorkspace } from "./components/RtcAdminCenterWorkspace";
 export type {
   RtcAdminCenterWorkspaceProps,
 } from "./components/RtcAdminCenterWorkspace";
-export type { RtcAdminCenterServices, ListPort } from "./types/adminServices";
+export {
+  ProviderCatalogDashboard,
+  providerApplicationKind,
+  providerCapabilitiesFromSchema,
+} from "./components/ProviderCatalogDashboard";
+export type { ProviderCatalogDashboardProps } from "./components/ProviderCatalogDashboard";
+export type {
+  ProviderProfileVerifyCheck,
+  ProviderProfileVerifyResult,
+  ProviderVerifyMode,
+  RtcAdminCenterServices,
+  ListPort,
+} from "./types/adminServices";

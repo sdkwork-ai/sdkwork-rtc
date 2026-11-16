@@ -9,7 +9,7 @@
   ],
   "applicationFields": [
     {"key": "providerApplicationId", "label": "AppId", "type": "string", "required": true, "placeholder": "如 volc-app-001"},
-    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["app_id"], "default": "app_id", "hidden": true},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["volcengine_app_id"], "default": "volcengine_app_id", "hidden": true},
     {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.volcengine.local/session", "required": false},
     {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://rtc.volcengineapi.com"},
     {"key": "apiHost", "label": "API主机", "type": "string", "default": "rtc.volcengineapi.com"},
@@ -31,6 +31,14 @@
       "fields": [
         {"key": "credentialRef", "label": "Access Key ID", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/volcengine/access-key-id"},
         {"key": "credentialFingerprint", "label": "Secret Access Key", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/volcengine/secret-access-key"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/volcengine/webhook"}
       ]
     }
   ],

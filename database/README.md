@@ -11,8 +11,9 @@ Canonical lifecycle assets for `sdkwork-rtc` per `DATABASE_FRAMEWORK_SPEC.md`.
 This module is in **initialization state** for greenfield deployments:
 
 1. **Baseline** — `database/ddl/baseline/{engine}/0001_rtc_baseline.sql` contains the full DDL snapshot.
-2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
-3. **Drift** — run `pnpm db:drift:check` before release.
+2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. `0002_provider_secret_columns` adds the sealed provider-secret columns and the provider-profile → provider-application link.
+3. **Seeds** — the `standard` profile ships `002_rtc_provider_catalog.sql` (account → application → profile → route for every built-in provider) and `003_rtc_provider_credentials.sql` (credential-role placeholders). `lifecycle.seedOnBoot` is enabled so development, test, staging, demo, and production installs all provision the same provider catalog; the seed contains no secret material.
+4. **Drift** — run `pnpm db:drift:check` before release.
 
 ## Commands
 

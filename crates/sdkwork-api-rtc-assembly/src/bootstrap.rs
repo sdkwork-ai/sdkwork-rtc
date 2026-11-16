@@ -15,7 +15,9 @@ use sdkwork_communication_rtc_service::rtc_persistence_required;
 use sdkwork_database_sqlx::DatabasePool;
 use sdkwork_rtc_plugin_bootstrap::build_builtin_provider_registry;
 use sdkwork_rtc_service_host::RtcProductService;
-use sdkwork_web_bootstrap::{ApiAssemblyContribution, DatabasePoolReadinessCheck, ReadinessCheck, WebModule};
+use sdkwork_web_bootstrap::{
+    ApiAssemblyContribution, DatabasePoolReadinessCheck, ReadinessCheck, WebModule,
+};
 use sdkwork_web_core::HttpRouteManifest;
 
 /// Indivisible host-neutral API assembly contribution (web-bootstrap contract).
@@ -47,10 +49,14 @@ pub async fn assemble_reconcile_service() -> anyhow::Result<Arc<RtcProductServic
 }
 
 async fn hydrate_service_from_persistence(service: &mut RtcProductService) -> Result<(), String> {
+    // The seeded provider catalog and the Cloud Router admin scope use the
+    // canonical tenant 100001 / organization 0. Without a default, an unset
+    // environment hydrated the literal string "default", which the PostgreSQL
+    // repository rejects as a non-numeric scope.
     let tenant_id =
-        std::env::var("SDKWORK_RTC_HYDRATE_TENANT_ID").unwrap_or_else(|_| "default".into());
+        std::env::var("SDKWORK_RTC_HYDRATE_TENANT_ID").unwrap_or_else(|_| "100001".into());
     let organization_id =
-        std::env::var("SDKWORK_RTC_HYDRATE_ORGANIZATION_ID").unwrap_or_else(|_| "default".into());
+        std::env::var("SDKWORK_RTC_HYDRATE_ORGANIZATION_ID").unwrap_or_else(|_| "0".into());
     service
         .hydrate_from_persistence(tenant_id, organization_id)
         .await
@@ -193,11 +199,17 @@ pub async fn assemble_backend_api_contribution_with_pool(
 /// (API_ASSEMBLY_SPEC §4.1.1): the complete HTTP surface — every route,
 /// manifest, and OpenAPI document of this owner — as one installable module.
 pub async fn web_module() -> Result<WebModule, String> {
-    Ok(WebModule::from_contribution(assemble_api_router().await.map_err(|error| error.to_string())?))
+    Ok(WebModule::from_contribution(
+        assemble_api_router()
+            .await
+            .map_err(|error| error.to_string())?,
+    ))
 }
 
 /// Same as [`web_module`] but composed on a process-shared database pool
 /// (platform gateways, API_ASSEMBLY_SPEC §4.1.1).
 pub async fn web_module_with_pool(pool: DatabasePool) -> Result<WebModule, String> {
-    Ok(WebModule::from_contribution(assemble_api_router_with_pool(pool).await?))
+    Ok(WebModule::from_contribution(
+        assemble_api_router_with_pool(pool).await?,
+    ))
 }
