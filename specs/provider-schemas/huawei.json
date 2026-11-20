@@ -1,0 +1,53 @@
+{
+  "provider": "huawei",
+  "displayName": "华为云 RTC",
+  "description": "华为云SparkRTC实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "华为云账号ID", "type": "string", "required": false},
+    {"key": "projectId", "label": "项目ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "App ID", "type": "string", "required": true, "placeholder": "如 huawei-rtc-app-001"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["huawei_app_id"], "default": "huawei_app_id", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.huawei.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://rtc-api.cloudrtc.myhuaweicloud.com"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "rtc-api.cloudrtc.myhuaweicloud.com"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "v1"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(SparkRTC HMAC签名)",
+      "fields": [
+        {"key": "credentialRef", "label": "App Key", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/huawei/app-key"}
+      ]
+    },
+    {
+      "role": "cloud_api_signing",
+      "label": "云API签名",
+      "description": "用于调用华为云API(Active Query)",
+      "fields": [
+        {"key": "credentialRef", "label": "Access Key ID", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/huawei/access-key-id"},
+        {"key": "credentialFingerprint", "label": "Secret Access Key", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/huawei/secret-access-key"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/huawei/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "App ID", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.huawei.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["cn-north-4", "ap-southeast-2", "me-east-1", "la-north-2"], "default": "cn-north-4"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "cloud-mix", "cdn-relay", "provider.active-query"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

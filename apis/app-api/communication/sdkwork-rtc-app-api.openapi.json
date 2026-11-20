@@ -56,7 +56,6 @@
         ],
         "summary": "Rtc media Sessions list.",
         "operationId": "rtc.mediaSessions.list",
-        "x-sdkwork-permission": "rtc.media_sessions.read",
         "parameters": [
           {
             "name": "page",
@@ -222,6 +221,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.media_sessions.read",
         "x-sdkwork-auth-mode": "dual-token"
       },
       "post": {
@@ -230,7 +230,6 @@
         ],
         "summary": "Rtc media Sessions create.",
         "operationId": "rtc.mediaSessions.create",
-        "x-sdkwork-permission": "rtc.media_sessions.write",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -330,6 +329,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.media_sessions.write",
         "x-sdkwork-auth-mode": "dual-token",
         "x-sdkwork-rate-limit-tier": "openApiDefault",
         "x-sdkwork-idempotent": true,
@@ -352,7 +352,6 @@
         ],
         "summary": "Rtc media Sessions retrieve.",
         "operationId": "rtc.mediaSessions.retrieve",
-        "x-sdkwork-permission": "rtc.media_sessions.read",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -449,6 +448,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.media_sessions.read",
         "x-sdkwork-auth-mode": "dual-token"
       }
     },
@@ -459,7 +459,6 @@
         ],
         "summary": "Rtc media Sessions completion Record retrieve.",
         "operationId": "rtc.mediaSessions.completionRecord.retrieve",
-        "x-sdkwork-permission": "rtc.media_sessions.read",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -556,6 +555,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.media_sessions.read",
         "x-sdkwork-auth-mode": "dual-token"
       }
     },
@@ -566,7 +566,6 @@
         ],
         "summary": "Rtc media Sessions participant Credentials issue.",
         "operationId": "rtc.mediaSessions.participantCredentials.issue",
-        "x-sdkwork-permission": "rtc.media_sessions.credentials.issue",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -682,6 +681,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.media_sessions.credentials.issue",
         "x-sdkwork-auth-mode": "dual-token",
         "x-sdkwork-rate-limit-tier": "authCritical",
         "x-sdkwork-idempotent": true,
@@ -704,7 +704,6 @@
         ],
         "summary": "Rtc media Sessions recording Artifacts list.",
         "operationId": "rtc.mediaSessions.recordingArtifacts.list",
-        "x-sdkwork-permission": "rtc.media_artifacts.read",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -846,6 +845,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.media_artifacts.read",
         "x-sdkwork-auth-mode": "dual-token"
       }
     },
@@ -856,7 +856,6 @@
         ],
         "summary": "Rtc provider Profiles active list.",
         "operationId": "rtc.providerProfiles.active.list",
-        "x-sdkwork-permission": "rtc.provider_profiles.read",
         "parameters": [
           {
             "name": "page",
@@ -990,6 +989,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.provider_profiles.read",
         "x-sdkwork-auth-mode": "dual-token"
       }
     },
@@ -1000,7 +1000,6 @@
         ],
         "summary": "Rtc rooms list.",
         "operationId": "rtc.rooms.list",
-        "x-sdkwork-permission": "rtc.rooms.read",
         "parameters": [
           {
             "name": "page",
@@ -1164,6 +1163,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.rooms.read",
         "x-sdkwork-auth-mode": "dual-token"
       }
     },
@@ -1174,7 +1174,6 @@
         ],
         "summary": "Rtc rooms retrieve.",
         "operationId": "rtc.rooms.retrieve",
-        "x-sdkwork-permission": "rtc.rooms.read",
         "parameters": [
           {
             "name": "roomId",
@@ -1271,6 +1270,7 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api",
         "x-sdkwork-server-request-id": true,
+        "x-sdkwork-permission": "rtc.rooms.read",
         "x-sdkwork-auth-mode": "dual-token"
       }
     }

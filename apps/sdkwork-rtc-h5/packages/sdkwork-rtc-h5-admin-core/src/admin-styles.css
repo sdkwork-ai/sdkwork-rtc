@@ -81,6 +81,115 @@
   color: var(--rtc-admin-text-title);
 }
 
+.provider-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.provider-catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.provider-catalog-header h2 {
+  margin: 0 0 4px;
+}
+
+.provider-status-pill {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.provider-status-pill.health-healthy {
+  background: var(--rtc-admin-b-success-bg);
+  color: var(--rtc-admin-b-success-fg);
+}
+
+.provider-status-pill.health-degraded {
+  background: var(--rtc-admin-b-warning-bg);
+  color: var(--rtc-admin-b-warning-fg);
+}
+
+.provider-status-pill.health-unknown {
+  background: var(--rtc-admin-b-neutral-bg);
+  color: var(--rtc-admin-text-b-muted);
+}
+
+.provider-card-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 12px 0;
+}
+
+.provider-card-facts dt {
+  font-size: 12px;
+  color: var(--rtc-admin-text-b-muted);
+}
+
+.provider-card-facts dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rtc-admin-text-title);
+  overflow-wrap: anywhere;
+}
+
+.provider-editor {
+  margin-top: 16px;
+}
+
+.provider-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.provider-default-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-secret-configured {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--rtc-admin-b-success-fg);
+}
+
+.provider-verification {
+  border: 1px solid var(--rtc-admin-border-soft);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.provider-verification ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.verification-passed {
+  color: var(--rtc-admin-b-success-fg);
+}
+
+.verification-warning {
+  color: var(--rtc-admin-b-warning-fg);
+}
+
+.verification-failed {
+  color: var(--rtc-admin-b-danger-fg);
+}
+
 .health-badge {
   padding: 2px 8px;
   border-radius: 12px;

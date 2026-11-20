@@ -16,6 +16,28 @@
 -- Credentials live in 003_rtc_provider_credentials.sql and are never written
 -- here as secret material.
 --
+-- Per-environment initialization
+-- ------------------------------
+-- This standard seed set is applied on boot in EVERY environment database
+-- (development, test, staging, demo, production — see database.manifest.json
+-- `seedOnBoot: true` and sdkwork-rtc-database-host). Each environment therefore
+-- always starts with a complete provider account chain, satisfying the
+-- DATABASE_FRAMEWORK_SPEC initialization contract. The `environment` column on
+-- the seeded rows carries the canonical console-facing stamp 'production'
+-- (CHECK-constrained to development/test/staging/production/demo); operators of
+-- non-production deployments keep using the same chain — the vendor secrets
+-- they enter through the admin console are sealed per deployment, so a
+-- development database's credentials never leak into staging or production.
+--
+-- Planned vendor coverage
+-- -----------------------
+-- specs/provider-registry/platform-default.json additionally declares planned
+-- industry vendors (huawei, netease, zego, baidu, rongcloud, zoom, twilio,
+-- aws-chime-sdk, azure-communication-services, jitsi, 100ms, daily) that have
+-- no runtime adapter yet. They appear in the admin catalog (provider_schemas
+-- with adapterStatus "planned") but are deliberately NOT seeded here and every
+-- configuration write against them is rejected until their adapter ships.
+--
 -- Idempotency: every insert is ON CONFLICT DO NOTHING, so re-running the seed
 -- never rewrites an operator edit (a renamed profile, a re-pointed route).
 -- Deterministic ids: fixed small ids far below the runtime id range, mirroring
@@ -101,7 +123,7 @@ VALUES
      'Tencent Cloud TRTC', 1, FALSE, 100, 'production', 'ap-guangzhou',
      'seed-rtc-app-tencent', 'seed-tencent-sdk-app-id',
      'wss://rtc.tencent.local/session', 'secret://rtc/tencent/usersig-key', NULL,
-     'secret://rtc/tencent/webhook', NULL,
+     'secret://rtc/tencent/webhook-key', NULL,
      '{"audio":true,"video":true,"live":true,"liveBroadcast":true,"liveAudience":true,"cdnRelay":true,"screenShare":true,"recording":true,"webhook":true,"activeQuery":true,"maxParticipants":null,"supportedRegions":["ap-guangzhou","ap-shanghai","ap-beijing","ap-hongkong","na-siliconvalley","eu-frankfurt"],"providerFeatures":{}}'::jsonb,
      '{"credentialTtlSeconds":3600}'::jsonb, 0, 0, 0, CURRENT_TIMESTAMP,
      CURRENT_TIMESTAMP, 0),

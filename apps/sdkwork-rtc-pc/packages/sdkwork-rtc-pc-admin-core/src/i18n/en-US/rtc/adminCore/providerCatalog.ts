@@ -1,12 +1,15 @@
 export const adminRtcProviderCatalogEn = {
   "admin.rtc.providerCatalog.title": "RTC providers",
   "admin.rtc.providerCatalog.subtitle":
-    "Every supported RTC provider is preconfigured. Enter the provider App ID and secret once, then calls work.",
+    "The provider catalog covers the industry's mainstream RTC vendors: implemented vendors only need the provider App ID and secret once; vendors marked “adapter pending” open up when their adapter ships.",
   "admin.rtc.providerCatalog.refresh": "Refresh",
   "admin.rtc.providerCatalog.statusNotConfigured": "Not configured",
   "admin.rtc.providerCatalog.statusNeedsAppId": "Needs App ID",
   "admin.rtc.providerCatalog.statusNeedsSecret": "Needs secret",
   "admin.rtc.providerCatalog.statusReady": "Ready",
+  "admin.rtc.providerCatalog.statusPlanned": "Adapter pending",
+  "admin.rtc.providerCatalog.plannedTitle":
+    "This vendor is in the catalog but its runtime adapter is not implemented yet; it becomes configurable once the adapter ships.",
   "admin.rtc.providerCatalog.account": "Account",
   "admin.rtc.providerCatalog.missing": "Missing",
   "admin.rtc.providerCatalog.appId": "App ID",

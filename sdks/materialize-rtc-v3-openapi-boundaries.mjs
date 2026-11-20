@@ -438,6 +438,32 @@ function operationListFilterParameters(route) {
         queryParameter("ownerUserId", { type: "string" }),
         queryParameter("createdAfter", { type: "string", format: "date-time" }),
       ];
+    case "rtc.providerAccounts.list":
+      return [
+        queryParameter("provider", { type: "string" }),
+        queryParameter("status", {
+          type: "string",
+          enum: ["active", "disabled", "archived"],
+        }),
+        queryParameter("environment", {
+          type: "string",
+          enum: ["development", "test", "staging", "production", "demo"],
+          description: "Canonical environment stamp filter for provider entities.",
+        }),
+      ];
+    case "rtc.providerProfiles.list":
+      return [
+        queryParameter("provider", { type: "string" }),
+        queryParameter("status", {
+          type: "string",
+          enum: ["active", "disabled"],
+        }),
+        queryParameter("environment", {
+          type: "string",
+          enum: ["development", "test", "staging", "production", "demo"],
+          description: "Canonical environment stamp filter for provider entities.",
+        }),
+      ];
     case "rtc.mediaSessions.list":
       return [
         queryParameter("status", {
@@ -1779,6 +1805,7 @@ function buildSchemas() {
         "provider",
         "displayName",
         "description",
+        "adapterStatus",
         "accountFields",
         "applicationFields",
         "credentialRoles",
@@ -1790,6 +1817,12 @@ function buildSchemas() {
         provider: { type: "string" },
         displayName: { type: "string" },
         description: { type: "string" },
+        adapterStatus: {
+          type: "string",
+          enum: ["implemented", "planned"],
+          description:
+            "Catalog status of the provider kind: implemented kinds have a runtime adapter; planned kinds are vendor-catalog entries only and every configuration write against them is rejected.",
+        },
         accountFields: {
           type: "array",
           items: { $ref: "#/components/schemas/RtcProviderConfigFieldSchema" },

@@ -83,6 +83,10 @@ pub fn build_sdkwork_rtc_backend_api_router(service: Arc<dyn RtcBackendApiServic
             post(handlers::disable_provider_route),
         )
         .route(
+            "/backend/v3/api/rtc/provider_defaults",
+            post(handlers::create_provider_defaults),
+        )
+        .route(
             "/backend/v3/api/rtc/media_sessions",
             get(handlers::list_media_sessions),
         )
@@ -182,8 +186,9 @@ mod tests {
     use crate::service::{
         RtcBackendApiError, RtcBackendApiFuture, RtcBackendApiService, RtcBackendListQuery,
         RtcBackendListRequest, RtcCloseMediaSessionRequest, RtcCreateRoomCommand, RtcListData,
-        RtcProviderQueryJobCreateRequest, RtcProviderRoute, RtcProviderRouteCommand,
-        RtcProviderRouteDisableRequest, RtcProviderWebhookIngress,
+        RtcProviderDefaultsCommand, RtcProviderDefaultsReport, RtcProviderQueryJobCreateRequest,
+        RtcProviderRoute, RtcProviderRouteCommand, RtcProviderRouteDisableRequest,
+        RtcProviderWebhookIngress,
     };
 
     #[tokio::test]
@@ -290,6 +295,17 @@ mod tests {
             _request: RtcProviderAccountCommand,
         ) -> RtcBackendApiFuture<RtcProviderAccount> {
             self.record("create_provider_account");
+            Self::unavailable()
+        }
+
+        fn create_provider_defaults(
+            &self,
+            _tenant_id: String,
+            _organization_id: Option<String>,
+            _actor_id: String,
+            _request: RtcProviderDefaultsCommand,
+        ) -> RtcBackendApiFuture<RtcProviderDefaultsReport> {
+            self.record("create_provider_defaults");
             Self::unavailable()
         }
 

@@ -313,7 +313,10 @@ test("sdkwork-rtc core Rust runtime crates declare component specs", () => {
 test("sdkwork-rtc integrates sdkwork-database framework for persistence bootstrap", () => {
   const repositoryCargo = read("crates/sdkwork-communication-rtc-repository-sqlx/Cargo.toml");
   const databaseModule = read("crates/sdkwork-communication-rtc-repository-sqlx/src/database.rs");
-  const apiBootstrap = read("crates/sdkwork-api-rtc-standalone-gateway/src/bootstrap.rs");
+  // Service construction and persistence wiring live in the assembly crate;
+  // the standalone-gateway binary consumes assembly entrypoints only
+  // (API_ASSEMBLY_SPEC §6.1).
+  const apiBootstrap = read("crates/sdkwork-api-rtc-assembly/src/bootstrap.rs");
 
   for (const dependency of [
     "sdkwork-database-config",
@@ -523,8 +526,10 @@ test("sdkwork-rtc route manifests declare WebRequestContext and apiSurface", () 
 
 test("sdkwork-rtc standalone-gateway wires database readiness when persistence pool is configured", () => {
   const mainSource = read("crates/sdkwork-api-rtc-standalone-gateway/src/main.rs");
-  const bootstrapSource = read("crates/sdkwork-api-rtc-standalone-gateway/src/bootstrap.rs");
-  const readinessSource = read("crates/sdkwork-api-rtc-standalone-gateway/src/readiness.rs");
+  // The assembly owns service construction, route mounting, and DB-gated
+  // readiness; the gateway binaries consume assembly entrypoints only
+  // (API_ASSEMBLY_SPEC §6.1).
+  const bootstrapSource = read("crates/sdkwork-api-rtc-assembly/src/bootstrap.rs");
   const databaseModule = read("crates/sdkwork-communication-rtc-repository-sqlx/src/database.rs");
 
   assert.match(databaseModule, /connect_rtc_persistence_bootstrap_from_env/u);
@@ -533,12 +538,12 @@ test("sdkwork-rtc standalone-gateway wires database readiness when persistence p
   assert.match(read("crates/sdkwork-communication-rtc-repository-sqlx/specs/component.spec.json"), /database-prefix-registry\.json/u);
   assert.match(read("crates/sdkwork-communication-rtc-repository-sqlx/specs/component.spec.json"), /database-table-registry\.json/u);
   assert.doesNotMatch(databaseModule, /persistence_from_legacy_database_url/u, "repository must not keep legacy direct sqlx pool bootstrap");
-  assert.match(bootstrapSource, /RtcApiBootstrap/u);
+  assert.match(bootstrapSource, /connect_rtc_persistence_bootstrap_from_env/u);
   assert.match(bootstrapSource, /database_pool/u);
-  assert.match(readinessSource, /RtcDatabaseReadinessCheck/u);
-  assert.match(readinessSource, /check_rtc_database_health/u);
-  assert.match(mainSource, /RtcDatabaseReadinessCheck/u);
-  assert.match(mainSource, /database_pool/u);
+  assert.match(bootstrapSource, /DatabasePoolReadinessCheck/u, "assembly must gate readiness on the persistence pool when configured");
+  assert.match(bootstrapSource, /assemble_api_router\b/u);
+  assert.match(mainSource, /assemble_api_router/u, "gateway binary must boot through the assembly entrypoint");
+  assert.doesNotMatch(mainSource, /create_pool_from_env/u, "gateway binary must not duplicate sdkwork-database pool bootstrap");
 });
 
 test("sdkwork-rtc provider webhook ingress declares framework rate-limit tier", () => {
@@ -546,9 +551,9 @@ test("sdkwork-rtc provider webhook ingress declares framework rate-limit tier", 
     read("sdks/_route-manifests/backend-api/sdkwork-routes-rtc-backend-api.route-manifest.json"),
   );
   const webhookRoute = backendManifest.routes.find(
-    (route) => route.operationId === "rtc.providerWebhooks.events.create",
+    (route) => route.operationId === "rtc.providerWebhooks.events.receive",
   );
-  assert.ok(webhookRoute, "backend manifest must declare provider webhook create route");
+  assert.ok(webhookRoute, "backend manifest must declare provider webhook receive route");
   assert.equal(webhookRoute.rateLimitTier, "openApiDefault");
 
   const backendWebBootstrap = read("crates/sdkwork-routes-rtc-backend-api/src/web_bootstrap.rs");
@@ -692,8 +697,8 @@ test("sdkwork-rtc externalizes provider registry defaults under specs/provider-r
   );
   assert.match(
     read("crates/sdkwork-rtc-plugin-bootstrap/src/lib.rs"),
-    /platform_default_provider_kinds/u,
-    "runtime bootstrap must read provider kinds from registry manifest",
+    /platform_default_implemented_provider_kinds/u,
+    "runtime bootstrap must register factories for implemented provider kinds from the registry manifest",
   );
 });
 

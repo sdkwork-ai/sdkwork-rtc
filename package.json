@@ -14,6 +14,7 @@
     "check": "pnpm exec sdkwork-app check",
     "clean": "pnpm exec sdkwork-app clean",
     "test:contract:migration": "node --test tests/rtc-migration-contract.test.mjs",
+    "test:contract:provider-catalog": "node --test tests/rtc-provider-catalog-contract.test.mjs",
     "api:materialize": "node sdks/materialize-rtc-v3-openapi-boundaries.mjs",
     "api:materialize:rust-component-specs": "node tools/materialize-rtc-rust-component-specs.mjs",
     "api:materialize:check": "node tools/materialize-rtc-rust-component-specs.mjs --check",

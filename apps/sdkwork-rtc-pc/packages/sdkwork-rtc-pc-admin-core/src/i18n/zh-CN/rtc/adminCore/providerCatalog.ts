@@ -1,12 +1,15 @@
 export const adminRtcProviderCatalogZh = {
   "admin.rtc.providerCatalog.title": "RTC 供应商",
   "admin.rtc.providerCatalog.subtitle":
-    "所有受支持的 RTC 供应商都已预配置。只需填写供应商的 App ID 和密钥，即可使用通话服务。",
+    "供应商目录对齐行业主流 RTC 厂商：已接入的供应商只需填写 App ID 和密钥即可使用；标记为“适配器待接入”的厂商会在适配器落地后开放配置。",
   "admin.rtc.providerCatalog.refresh": "刷新",
   "admin.rtc.providerCatalog.statusNotConfigured": "未配置",
   "admin.rtc.providerCatalog.statusNeedsAppId": "待填写 App ID",
   "admin.rtc.providerCatalog.statusNeedsSecret": "待填写密钥",
   "admin.rtc.providerCatalog.statusReady": "已就绪",
+  "admin.rtc.providerCatalog.statusPlanned": "适配器待接入",
+  "admin.rtc.providerCatalog.plannedTitle":
+    "该供应商已进入目录，但运行时适配器尚未实现；适配器接入后即可配置。",
   "admin.rtc.providerCatalog.account": "账户",
   "admin.rtc.providerCatalog.missing": "缺失",
   "admin.rtc.providerCatalog.appId": "App ID",

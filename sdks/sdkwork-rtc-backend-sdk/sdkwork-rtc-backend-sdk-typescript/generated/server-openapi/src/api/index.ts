@@ -5,6 +5,7 @@ export { RtcMediaSessionsApi, createRtcMediaSessionsApi } from './rtc-media-sess
 export { RtcProviderAccountsApi, createRtcProviderAccountsApi } from './rtc-provider-accounts';
 export { RtcProviderApplicationsApi, createRtcProviderApplicationsApi } from './rtc-provider-applications';
 export { RtcProviderCredentialsApi, createRtcProviderCredentialsApi } from './rtc-provider-credentials';
+export { RtcProviderDefaultsApi, createRtcProviderDefaultsApi } from './rtc-provider-defaults';
 export { RtcProviderPluginsApi, createRtcProviderPluginsApi } from './rtc-provider-plugins';
 export { RtcProviderProfilesApi, createRtcProviderProfilesApi } from './rtc-provider-profiles';
 export { RtcProviderQueryJobsApi, createRtcProviderQueryJobsApi } from './rtc-provider-query-jobs';

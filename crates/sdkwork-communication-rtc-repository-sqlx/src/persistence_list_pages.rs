@@ -12,8 +12,7 @@ use crate::list_page::fetch_bounded_page;
 use crate::{
     RtcPostgresMediaSessionRepository, RtcPostgresProviderAccountRepository,
     RtcPostgresProviderEventRepository, RtcPostgresProviderProfileRepository,
-    RtcPostgresProviderRouteRepository,
-     RtcStorageError,
+    RtcPostgresProviderRouteRepository, RtcStorageError,
 };
 
 fn page_error(error: RtcListWindowError) -> RtcPersistenceError {
@@ -49,19 +48,11 @@ where
     Fut: Future<Output = Result<Vec<T>, RtcListWindowError>>,
 {
     fetch_bounded_page(&query.params, |offset, limit, q, sort, desc| {
-        fetch(
-            offset,
-            limit,
-            q.map(str::to_string),
-            sort.to_string(),
-            desc,
-        )
+        fetch(offset, limit, q.map(str::to_string), sort.to_string(), desc)
     })
     .await
     .map_err(page_error)
 }
-
-
 
 pub async fn postgres_list_media_sessions_page(
     repo: &RtcPostgresMediaSessionRepository,
@@ -128,7 +119,6 @@ pub async fn postgres_list_rooms_page(
     .await
 }
 
-
 pub async fn postgres_list_active_provider_profiles_page(
     repo: &RtcPostgresProviderProfileRepository,
     query: RtcScopedListQuery,
@@ -160,15 +150,15 @@ pub async fn postgres_list_active_provider_profiles_page(
     .await
 }
 
-
 pub async fn postgres_list_media_artifacts_page(
     repo: &RtcPostgresMediaSessionRepository,
     query: RtcScopedListQuery,
 ) -> Result<RtcMediaArtifactListPage, RtcPersistenceError> {
-    let session_id = query
-        .media_session_id
-        .clone()
-        .ok_or_else(|| page_error(RtcListWindowError::bad_request("media_session_id is required")))?;
+    let session_id = query.media_session_id.clone().ok_or_else(|| {
+        page_error(RtcListWindowError::bad_request(
+            "media_session_id is required",
+        ))
+    })?;
     let repo = repo.clone();
     let tenant_id = query.tenant_id.clone();
     let organization_id = query.organization_id.clone();
@@ -194,7 +184,6 @@ pub async fn postgres_list_media_artifacts_page(
     })
     .await
 }
-
 
 pub async fn postgres_list_media_artifacts_scope_page(
     repo: &RtcPostgresMediaSessionRepository,
@@ -227,7 +216,6 @@ pub async fn postgres_list_media_artifacts_scope_page(
     .await
 }
 
-
 pub async fn postgres_list_provider_profiles_page(
     repo: &RtcPostgresProviderProfileRepository,
     query: RtcScopedListQuery,
@@ -236,16 +224,19 @@ pub async fn postgres_list_provider_profiles_page(
     let tenant_id = query.tenant_id.clone();
     let organization_id = query.organization_id.clone();
     let provider = query.provider.clone();
+    let environment = query.environment.clone();
     bounded_page(query, move |offset, limit, q, sort, desc| {
         let repo = repo.clone();
         let tenant_id = tenant_id.clone();
         let organization_id = organization_id.clone();
         let provider = provider.clone();
+        let environment = environment.clone();
         async move {
             repo.list_provider_profiles_page(
                 tenant_id.as_str(),
                 organization_id.as_str(),
                 provider.as_deref(),
+                environment.as_deref(),
                 offset,
                 limit,
                 q.as_deref(),
@@ -258,7 +249,6 @@ pub async fn postgres_list_provider_profiles_page(
     })
     .await
 }
-
 
 pub async fn postgres_list_provider_accounts_page(
     repo: &RtcPostgresProviderAccountRepository,
@@ -269,18 +259,21 @@ pub async fn postgres_list_provider_accounts_page(
     let organization_id = query.organization_id.clone();
     let provider = query.provider.clone();
     let status = provider_account_status_from_key(query.status.as_deref()).map_err(page_error)?;
+    let environment = query.environment.clone();
     bounded_page(query, move |offset, limit, q, sort, desc| {
         let repo = repo.clone();
         let tenant_id = tenant_id.clone();
         let organization_id = organization_id.clone();
         let provider = provider.clone();
         let status = status.clone();
+        let environment = environment.clone();
         async move {
             repo.list_provider_accounts_page(
                 tenant_id.as_str(),
                 organization_id.as_str(),
                 provider.as_deref(),
                 status,
+                environment.as_deref(),
                 offset,
                 limit,
                 q.as_deref(),
@@ -293,7 +286,6 @@ pub async fn postgres_list_provider_accounts_page(
     })
     .await
 }
-
 
 pub async fn postgres_list_provider_applications_page(
     repo: &RtcPostgresProviderAccountRepository,
@@ -330,7 +322,6 @@ pub async fn postgres_list_provider_applications_page(
     .await
 }
 
-
 pub async fn postgres_list_provider_credentials_page(
     repo: &RtcPostgresProviderAccountRepository,
     query: RtcScopedListQuery,
@@ -366,7 +357,6 @@ pub async fn postgres_list_provider_credentials_page(
     .await
 }
 
-
 pub async fn postgres_list_provider_routes_page(
     repo: &RtcPostgresProviderRouteRepository,
     query: RtcScopedListQuery,
@@ -395,7 +385,6 @@ pub async fn postgres_list_provider_routes_page(
     .await
 }
 
-
 pub async fn postgres_list_webhook_events_page(
     repo: &RtcPostgresProviderEventRepository,
     query: RtcScopedListQuery,
@@ -423,7 +412,6 @@ pub async fn postgres_list_webhook_events_page(
     })
     .await
 }
-
 
 pub async fn postgres_list_provider_query_snapshots_page(
     repo: &RtcPostgresProviderEventRepository,
@@ -455,7 +443,6 @@ pub async fn postgres_list_provider_query_snapshots_page(
     })
     .await
 }
-
 
 pub async fn postgres_list_quality_samples_scope_page(
     repo: &RtcPostgresMediaSessionRepository,

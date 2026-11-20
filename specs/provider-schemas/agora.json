@@ -2,6 +2,7 @@
   "provider": "agora",
   "displayName": "Agora RTC",
   "description": "Agora实时音视频RTC提供方",
+  "adapterStatus": "implemented",
   "accountFields": [
     {"key": "externalTenantId", "label": "Agora Account ID", "type": "string", "required": false}
   ],

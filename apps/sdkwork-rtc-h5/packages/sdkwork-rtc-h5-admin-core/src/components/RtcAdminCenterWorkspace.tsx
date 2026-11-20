@@ -20,6 +20,7 @@ import { ProviderCredentialPage } from "./ProviderCredentialPage";
 import { ProviderAccountList } from "./ProviderAccountList";
 import { ProviderCapabilityConfig } from "./ProviderCapabilityConfig";
 import { ProviderConfigWizard, type ProviderWizardResult } from "./ProviderConfigWizard";
+import { ProviderCatalogDashboard } from "./ProviderCatalogDashboard";
 import { ProviderHealthDashboard } from "./ProviderHealthDashboard";
 import { ProviderPluginList } from "./ProviderPluginList";
 import { ProviderProfileList } from "./ProviderProfileList";
@@ -586,6 +587,24 @@ export function RtcAdminCenterWorkspace({
         return (
           <>
             {dashboardError && <AdminError message={dashboardError} />}
+            <ProviderCatalogDashboard
+              services={services}
+              schemas={dashboardData.schemas}
+              plugins={pluginsList.data}
+              accounts={accountsList.data}
+              profiles={dashboardData.profiles}
+              routes={routesList.data}
+              loading={dashboardLoading}
+              onChanged={async () => {
+                await Promise.all([
+                  accountsList.refresh(),
+                  profilesList.refresh(),
+                  routesList.refresh(),
+                  pluginsList.refresh(),
+                  refreshDashboard(),
+                ]);
+              }}
+            />
             <ProviderHealthDashboard
               profiles={dashboardData.profiles}
               schemas={dashboardData.schemas}

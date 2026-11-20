@@ -98,14 +98,14 @@ mod tests {
     #[test]
     fn standard_seed_profile_ships_the_provider_catalog() {
         let root = resolve_app_root();
-        let seed_manifest =
-            std::fs::read_to_string(root.join("database/seeds/seed.manifest.json"))
-                .expect("read the RTC seed manifest");
+        let seed_manifest = std::fs::read_to_string(root.join("database/seeds/seed.manifest.json"))
+            .expect("read the RTC seed manifest");
         assert!(seed_manifest.contains("002_rtc_provider_catalog.sql"));
         assert!(seed_manifest.contains("003_rtc_provider_credentials.sql"));
 
-        let database_manifest = std::fs::read_to_string(root.join("database/database.manifest.json"))
-            .expect("read the RTC database manifest");
+        let database_manifest =
+            std::fs::read_to_string(root.join("database/database.manifest.json"))
+                .expect("read the RTC database manifest");
         assert!(
             database_manifest.contains("\"seedOnBoot\": true"),
             "provider catalog reference data must be applied on boot in every environment"
@@ -113,18 +113,19 @@ mod tests {
     }
 
     /// Every built-in provider in the plugin registry must have a seeded
-    /// account/application/profile/route chain. This keeps the catalog aligned
-    /// with the provider adapters the runtime can actually serve.
+    /// account/application/profile/route chain, and planned catalog vendors
+    /// (no runtime adapter yet) must stay out of the seed. This keeps the
+    /// catalog aligned with the provider adapters the runtime can serve.
     #[test]
     fn provider_catalog_covers_every_registered_plugin() {
         let root = resolve_app_root();
-        let registry = std::fs::read_to_string(
-            root.join("specs/provider-registry/platform-default.json"),
+        let registry =
+            std::fs::read_to_string(root.join("specs/provider-registry/platform-default.json"))
+                .expect("read the provider registry");
+        let catalog = std::fs::read_to_string(
+            root.join("database/seeds/common/002_rtc_provider_catalog.sql"),
         )
-        .expect("read the provider registry");
-        let catalog =
-            std::fs::read_to_string(root.join("database/seeds/common/002_rtc_provider_catalog.sql"))
-                .expect("read the provider catalog seed");
+        .expect("read the provider catalog seed");
         for provider in ["volcengine", "tencent", "agora", "aliyun", "livekit"] {
             assert!(
                 registry.contains(&format!("\"{provider}\"")),
@@ -133,6 +134,29 @@ mod tests {
             assert!(
                 catalog.contains(&format!("'{provider}'")),
                 "provider catalog must seed {provider}"
+            );
+        }
+        for provider in [
+            "huawei",
+            "netease",
+            "zego",
+            "baidu",
+            "rongcloud",
+            "zoom",
+            "twilio",
+            "aws-chime-sdk",
+            "azure-communication-services",
+            "jitsi",
+            "100ms",
+            "daily",
+        ] {
+            assert!(
+                registry.contains(&format!("\"{provider}\"")),
+                "provider registry must declare planned vendor {provider}"
+            );
+            assert!(
+                !catalog.contains(&format!("'{provider}'")),
+                "provider catalog must not seed planned vendor {provider}"
             );
         }
     }

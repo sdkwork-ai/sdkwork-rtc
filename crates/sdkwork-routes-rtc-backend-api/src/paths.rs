@@ -73,6 +73,7 @@ pub const RTC_BACKEND_PROVIDER_PLUGIN_PATH: &str =
     "/backend/v3/api/rtc/provider_plugins/{provider}";
 pub const RTC_BACKEND_PROVIDER_PROFILE_CAPABILITIES_PATH: &str =
     "/backend/v3/api/rtc/provider_profiles/{providerProfileId}/capabilities";
+pub const RTC_BACKEND_PROVIDER_DEFAULTS_PATH: &str = "/backend/v3/api/rtc/provider_defaults";
 
 pub const RTC_BACKEND_ROUTES: &[RtcBackendRoute] = &[
     RtcBackendRoute {
@@ -306,6 +307,14 @@ pub const RTC_BACKEND_ROUTES: &[RtcBackendRoute] = &[
         operation_id: "rtc.providerRoutes.disable",
         owner: RTC_OWNER,
         permission: "rtc.provider_routes.write",
+    },
+    RtcBackendRoute {
+        method: "POST",
+        path: RTC_BACKEND_PROVIDER_DEFAULTS_PATH,
+        tag: "rtcProviderDefaults",
+        operation_id: "rtc.providerDefaults.create",
+        owner: RTC_OWNER,
+        permission: "rtc.provider_defaults.write",
     },
     RtcBackendRoute {
         method: "GET",

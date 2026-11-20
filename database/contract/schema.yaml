@@ -13,9 +13,8 @@ tables:
     lifecycle_status: active
     owner: rtc-platform
   - name: rtc_room_participant
-    lifecycle_status: reserved
+    lifecycle_status: active
     owner: rtc-platform
-    notes: DDL reserved for future room membership; active call participation uses rtc_media_participant.
   - name: rtc_media_session
     lifecycle_status: active
     owner: rtc-platform

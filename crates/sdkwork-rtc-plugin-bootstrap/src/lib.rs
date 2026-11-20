@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use sdkwork_communication_rtc_service::{
-    RtcProviderPluginFactory, platform_default_provider_kinds,
+    RtcProviderPluginFactory, platform_default_implemented_provider_kinds,
 };
 use sdkwork_rtc_adapter_agora::{AgoraRtcProviderConfig, create_agora_rtc_provider_plugin_factory};
 use sdkwork_rtc_adapter_aliyun::{
@@ -21,7 +21,9 @@ use sdkwork_rtc_service_host::{RtcProviderPluginRegistry, RtcProviderPluginRegis
 pub fn build_builtin_provider_registry()
 -> Result<RtcProviderPluginRegistry, RtcProviderPluginRegistryError> {
     let mut registry = RtcProviderPluginRegistry::new();
-    for provider_kind in platform_default_provider_kinds() {
+    // Only `implemented` catalog entries get a factory; planned vendors stay
+    // catalog-only until their adapter ships (see platform-default.json).
+    for provider_kind in platform_default_implemented_provider_kinds() {
         registry.register_provider_factory(provider_factory_for_kind(provider_kind.as_str())?)?;
     }
     Ok(registry)

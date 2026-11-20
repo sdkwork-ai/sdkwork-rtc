@@ -1,0 +1,43 @@
+{
+  "provider": "zego",
+  "displayName": "即构 ZEGO RTC",
+  "description": "即构ZEGO实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "ZEGO账号ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "App ID", "type": "number", "required": true, "placeholder": "如 123456789"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["zego_app_id"], "default": "zego_app_id", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.zego.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://api.zegocloud.com"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "api.zegocloud.com"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "v1"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(ZEGO Token04)",
+      "fields": [
+        {"key": "credentialRef", "label": "Server Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/zego/server-secret"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/zego/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "App ID", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.zego.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["cn", "global"], "default": "global"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "cloud-mix", "cdn-relay"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

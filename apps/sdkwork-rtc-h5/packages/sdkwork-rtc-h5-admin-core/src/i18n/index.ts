@@ -23,6 +23,7 @@ import { adminRtcDashboardEn } from "./en-US/rtc/adminCore/dashboard";
 import { adminRtcNotFoundEn } from "./en-US/rtc/adminCore/notFound";
 import { adminRtcPluginsEn } from "./en-US/rtc/adminCore/plugins";
 import { adminRtcProfilesEn } from "./en-US/rtc/adminCore/profiles";
+import { adminRtcProviderCatalogEn } from "./en-US/rtc/adminCore/providerCatalog";
 import { adminRtcQualityEn } from "./en-US/rtc/adminCore/quality";
 import { adminRtcQueryJobsEn } from "./en-US/rtc/adminCore/queryJobs";
 import { adminRtcRoomDetailEn } from "./en-US/rtc/adminCore/roomDetail";
@@ -45,6 +46,7 @@ import { adminRtcDashboardZh } from "./zh-CN/rtc/adminCore/dashboard";
 import { adminRtcNotFoundZh } from "./zh-CN/rtc/adminCore/notFound";
 import { adminRtcPluginsZh } from "./zh-CN/rtc/adminCore/plugins";
 import { adminRtcProfilesZh } from "./zh-CN/rtc/adminCore/profiles";
+import { adminRtcProviderCatalogZh } from "./zh-CN/rtc/adminCore/providerCatalog";
 import { adminRtcQualityZh } from "./zh-CN/rtc/adminCore/quality";
 import { adminRtcQueryJobsZh } from "./zh-CN/rtc/adminCore/queryJobs";
 import { adminRtcRoomDetailZh } from "./zh-CN/rtc/adminCore/roomDetail";
@@ -69,6 +71,7 @@ export const en = {
   ...adminRtcNotFoundEn,
   ...adminRtcPluginsEn,
   ...adminRtcProfilesEn,
+  ...adminRtcProviderCatalogEn,
   ...adminRtcQualityEn,
   ...adminRtcQueryJobsEn,
   ...adminRtcRoomDetailEn,
@@ -94,6 +97,7 @@ export const zh = {
   ...adminRtcNotFoundZh,
   ...adminRtcPluginsZh,
   ...adminRtcProfilesZh,
+  ...adminRtcProviderCatalogZh,
   ...adminRtcQualityZh,
   ...adminRtcQueryJobsZh,
   ...adminRtcRoomDetailZh,

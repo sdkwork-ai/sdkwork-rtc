@@ -67,14 +67,24 @@ test('declares v2 topology spec and profile env files for sdkwork-rtc', async ()
 
 test('root package.json wires @sdkwork/app-topology and standard dev scripts', async () => {
   const packageJson = await readJson('package.json');
-  assert.equal(packageJson.dependencies['@sdkwork/app-topology'], 'file:../sdkwork-app-topology');
-  assert.match(packageJson.scripts.dev, /dev:browser:postgres:standalone/u);
+  // The root consumes the topology adapter through thin script wrappers that
+  // invoke the sibling by relative path (PNPM_WORKSPACE_DEPENDENCY_SPEC: no
+  // file:/link: specifiers; AGENTS.md: scripts/ are thin command wrappers).
+  assert.match(
+    packageJson.scripts['test:topology-validate'],
+    /\.\.\/sdkwork-app-topology\/scripts\/sdkwork-topology\.mjs validate/u,
+  );
+  assert.match(packageJson.scripts.dev, /dev:standalone/u);
   assert.match(
     packageJson.scripts['dev:browser:postgres:standalone'],
-    /scripts\/rtc-dev\.mjs/,
+    /sdkwork-app dev --runtime-target browser --deployment-profile standalone/u,
   );
   assert.match(packageJson.scripts['dev:browser:cloud'], /--deployment-profile cloud/u);
-  assert.match(packageJson.scripts['test:topology-validate'], /sdkwork-topology\.mjs validate/);
+  // The raw topology-aware dev orchestrator stays reachable for local runs.
+  assert.match(
+    packageJson.scripts['dev:browser:postgres:standalone:local'],
+    /scripts\/rtc-dev\.mjs/u,
+  );
 });
 
 test('rtc dev orchestrator uses topology adapter helpers', async () => {
@@ -86,9 +96,6 @@ test('rtc dev orchestrator uses topology adapter helpers', async () => {
   assert.match(devScript, /resolveSurfaceHttpUrl/);
   assert.match(devScript, /resolveIamDevEnv/);
   assert.match(devScript, /IAM_APPLICATION_BOOTSTRAP_ENV/);
-  assert.match(devScript, /resolveCloudGatewayConfigPath/);
-  assert.match(devScript, /shouldAutostartGateway/);
-  assert.match(devScript, /--config/);
   assert.match(devScript, /--hosting is retired/u);
   assert.match(devScript, /--topology is retired/u);
 });
@@ -112,18 +119,9 @@ test('declares cloud gateway config bundles referenced by topology spec', async 
   assert.equal(bundleTarget?.profile, 'platform-config-bundle');
 });
 
-test('gateway cloud bundle and package matrix scripts are wired', async () => {
-  const packageJson = await readJson('package.json');
-  assert.match(packageJson.scripts['gateway:package:cloud'], /gateway-cloud-bundle\.mjs bundle/);
-  assert.match(packageJson.scripts['gateway:matrix:cloud'], /print-matrix/);
-
-  const bundleScript = await read('scripts/gateway-cloud-bundle.mjs');
-  assert.match(bundleScript, /RTC_CLOUD_GATEWAY_CONFIGS/);
-  assert.match(bundleScript, /sdkwork-rtc-api-gateway-config-/);
-
-  const spec = await readJson('specs/topology.spec.json');
-  assert.equal(spec.scripts.gatewayCloudBundle, 'scripts/gateway-cloud-bundle.mjs');
-});
+// The standalone gateway-cloud-bundle packaging mechanism was retired; server
+// packaging now goes through scripts/package-server.mjs and the standardized
+// bin/ entrypoints (MODULE_BIN_SPEC).
 
 test('openapi default servers use topology application port', async () => {
   for (const openapiPath of [

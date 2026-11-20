@@ -2,6 +2,7 @@
   "provider": "livekit",
   "displayName": "LiveKit RTC",
   "description": "LiveKit开源实时音视频RTC提供方",
+  "adapterStatus": "implemented",
   "accountFields": [
     {"key": "externalTenantId", "label": "LiveKit项目ID", "type": "string", "required": false}
   ],

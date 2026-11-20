@@ -1,0 +1,51 @@
+{
+  "provider": "rongcloud",
+  "displayName": "融云 RTC",
+  "description": "融云实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "融云账号ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "App Key", "type": "string", "required": true, "placeholder": "如 rongcloud-rtc-appkey-001"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["rongcloud_app_key"], "default": "rongcloud_app_key", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.rongcloud.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://api.rong-api.com"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "api.rong-api.com"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "v1"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(RTCToken)",
+      "fields": [
+        {"key": "credentialRef", "label": "App Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/rongcloud/app-secret"}
+      ]
+    },
+    {
+      "role": "cloud_api_signing",
+      "label": "云API签名",
+      "description": "用于调用融云服务端API(Active Query)",
+      "fields": [
+        {"key": "credentialRef", "label": "App Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/rongcloud/api-secret"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/rongcloud/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "App Key", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.rongcloud.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["cn", "global"], "default": "cn"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "cloud-mix"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

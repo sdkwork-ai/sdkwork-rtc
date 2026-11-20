@@ -749,6 +749,42 @@
       }
     },
     {
+      "method": "POST",
+      "path": "/backend/v3/api/rtc/provider_defaults",
+      "operationId": "rtc.providerDefaults.create",
+      "tags": [
+        "rtcProviderDefaults"
+      ],
+      "requestContext": "WebRequestContext",
+      "apiSurface": "backend-api",
+      "auth": {
+        "mode": "dual-token",
+        "required": true,
+        "permission": "rtc.provider_defaults.write",
+        "tenantScope": "tenant",
+        "dataScope": "organization"
+      },
+      "handler": {
+        "module": "crate::handlers",
+        "name": "providerDefaults_create"
+      },
+      "schemas": {
+        "request": "RtcOperationCommand",
+        "response": "SdkWorkResourceResponse",
+        "problem": "ProblemDetail"
+      },
+      "rateLimitTier": "openApiDefault",
+      "idempotent": true,
+      "ownership": {
+        "owner": "sdkwork-rtc",
+        "apiAuthority": "sdkwork-rtc-backend-api"
+      },
+      "source": {
+        "packageName": "sdkwork-routes-rtc-backend-api",
+        "file": "crates/sdkwork-routes-rtc-backend-api/src/paths.rs"
+      }
+    },
+    {
       "method": "GET",
       "path": "/backend/v3/api/rtc/provider_plugins",
       "operationId": "rtc.providerPlugins.list",

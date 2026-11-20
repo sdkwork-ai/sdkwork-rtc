@@ -63,7 +63,10 @@ fs.writeFileSync(path.join(root, 'database/contract/schema.yaml'), schemaYaml);
 const manifestPath = path.join(root, 'database/database.manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 manifest.contractVersion = '1.0.0';
-manifest.lifecycle.autoMigrate = true;
+// Authoritative-server modules keep autoMigrate false (check-database-framework-standard);
+// migrations run through the explicit lifecycle path, including the seed-enabled
+// boot sequence in sdkwork-rtc-database-host.
+manifest.lifecycle.autoMigrate ??= false;
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
 process.stdout.write(`materialized ${tableNames.length} tables into rtc database contract\n`);

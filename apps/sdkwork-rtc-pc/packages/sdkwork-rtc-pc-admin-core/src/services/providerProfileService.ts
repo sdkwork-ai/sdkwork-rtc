@@ -24,6 +24,8 @@ export class ProviderProfileService {
 
   async list(params?: {
     provider?: string;
+    status?: "active" | "disabled";
+    environment?: "development" | "test" | "staging" | "production" | "demo";
     page?: number;
     limit?: number;
     cursor?: string;
@@ -31,6 +33,9 @@ export class ProviderProfileService {
     sort?: string;
   }): Promise<ListResponse> {
     const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.list({
+      provider: params?.provider,
+      status: params?.status,
+      environment: params?.environment,
       page: params?.page,
       pageSize: params?.limit,
       cursor: params?.cursor,

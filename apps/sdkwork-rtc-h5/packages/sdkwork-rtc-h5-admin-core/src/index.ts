@@ -39,6 +39,12 @@ export { ProviderRouteForm } from "./components/ProviderRouteForm";
 export { ProviderConfigWizard } from "./components/ProviderConfigWizard";
 export type { ProviderWizardResult } from "./components/ProviderConfigWizard";
 export { ProviderHealthDashboard } from "./components/ProviderHealthDashboard";
+export {
+  ProviderCatalogDashboard,
+  providerApplicationKind,
+  providerCapabilitiesFromSchema,
+} from "./components/ProviderCatalogDashboard";
+export type { ProviderCatalogDashboardProps } from "./components/ProviderCatalogDashboard";
 export { ProviderPluginList } from "./components/ProviderPluginList";
 export { ProviderCapabilityConfig } from "./components/ProviderCapabilityConfig";
 export { ProviderWebhookEventList } from "./components/ProviderWebhookEventList";

@@ -523,18 +523,26 @@ export function ProviderCatalogDashboard({
             !isPlaceholderApplicationId(profile?.providerAppId);
           const secretConfigured = secretReady[schema.provider] === true;
           const ready = Boolean(profile?.credentialRef) && appIdConfigured && secretConfigured;
-          const statusLabel = !profile
-            ? t("admin.rtc.providerCatalog.statusNotConfigured", "Not configured")
-            : !appIdConfigured
-              ? t("admin.rtc.providerCatalog.statusNeedsAppId", "Needs App ID")
-              : ready
-                ? t("admin.rtc.providerCatalog.statusReady", "Ready")
-                : t("admin.rtc.providerCatalog.statusNeedsSecret", "Needs secret");
-          const statusClass = !profile
+          // Planned catalog vendors have no runtime adapter yet: they are
+          // visible for landscape coverage but cannot be configured until the
+          // adapter ships (the backend rejects their configuration writes).
+          const adapterPending = schema.adapterStatus === "planned";
+          const statusLabel = adapterPending
+            ? t("admin.rtc.providerCatalog.statusPlanned", "Adapter pending")
+            : !profile
+              ? t("admin.rtc.providerCatalog.statusNotConfigured", "Not configured")
+              : !appIdConfigured
+                ? t("admin.rtc.providerCatalog.statusNeedsAppId", "Needs App ID")
+                : ready
+                  ? t("admin.rtc.providerCatalog.statusReady", "Ready")
+                  : t("admin.rtc.providerCatalog.statusNeedsSecret", "Needs secret");
+          const statusClass = adapterPending
             ? "health-unknown"
-            : ready
-              ? "health-healthy"
-              : "health-degraded";
+            : !profile
+              ? "health-unknown"
+              : ready
+                ? "health-healthy"
+                : "health-degraded";
           return (
             <article key={schema.provider} className={`provider-card ${statusClass}`}>
               <div className="provider-card-header">
@@ -568,13 +576,29 @@ export function ProviderCatalogDashboard({
                 </div>
               </dl>
               <div className="form-actions">
-                <button type="button" onClick={() => void openEditor(schema)}>
+                <button
+                  type="button"
+                  onClick={() => void openEditor(schema)}
+                  disabled={adapterPending}
+                  title={
+                    adapterPending
+                      ? t(
+                          "admin.rtc.providerCatalog.plannedTitle",
+                          "No runtime adapter yet — configuration opens once the adapter ships",
+                        )
+                      : undefined
+                  }
+                >
                   {profile
                     ? t("admin.rtc.providerCatalog.edit", "Edit")
                     : t("admin.rtc.providerCatalog.configure", "Configure")}
                 </button>
                 {profile && (
-                  <button type="button" onClick={() => void verifyProvider(profile)}>
+                  <button
+                    type="button"
+                    onClick={() => void verifyProvider(profile)}
+                    disabled={adapterPending}
+                  >
                     {t("admin.rtc.providerCatalog.test", "Test")}
                   </button>
                 )}

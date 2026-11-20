@@ -34,6 +34,9 @@ export interface RtcProviderProfilesRtcProviderProfilesListParams {
   cursor?: string;
   sort?: string;
   q?: string;
+  provider?: string;
+  status?: 'active' | 'disabled';
+  environment?: 'development' | 'test' | 'staging' | 'production' | 'demo';
 }
 
 export interface RtcProviderProfilesRtcProviderProfilesCreateParams {
@@ -70,6 +73,9 @@ export class RtcProviderProfilesRtcProviderProfilesApi {
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'sort', value: params?.sort, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+      { name: 'provider', value: params?.provider, style: 'form', explode: true, allowReserved: false },
+      { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
+      { name: 'environment', value: params?.environment, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.request<{ items: RtcProviderProfile[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(backendApiPath(`/rtc/provider_profiles`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }

@@ -2,6 +2,7 @@
   "provider": "tencent",
   "displayName": "腾讯云 TRTC",
   "description": "腾讯云实时音视频(TRTC)提供方",
+  "adapterStatus": "implemented",
   "accountFields": [
     {"key": "externalTenantId", "label": "腾讯云主账号ID", "type": "string", "required": false, "placeholder": "如 100012345678"},
     {"key": "cloudAccountId", "label": "云账号ID", "type": "string", "required": false},

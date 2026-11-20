@@ -1,0 +1,52 @@
+{
+  "provider": "zoom",
+  "displayName": "Zoom Video SDK",
+  "description": "Zoom Video SDK实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "Zoom Account ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "SDK Key", "type": "string", "required": true, "placeholder": "如 zoom-video-sdk-key-001"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["zoom_sdk_key"], "default": "zoom_sdk_key", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.zoom.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://api.zoom.us"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "api.zoom.us"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "v2"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(Zoom JWT Token)",
+      "fields": [
+        {"key": "credentialRef", "label": "SDK Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/zoom/sdk-secret"}
+      ]
+    },
+    {
+      "role": "cloud_api_signing",
+      "label": "云API签名",
+      "description": "用于调用Zoom Server-to-Server OAuth API(Active Query)",
+      "fields": [
+        {"key": "credentialRef", "label": "Account ID", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/zoom/account-id"},
+        {"key": "credentialFingerprint", "label": "Client Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/zoom/client-secret"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/zoom/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "SDK Key", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.zoom.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["global"], "default": "global"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "cloud-mix", "data-channel"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

@@ -6,27 +6,104 @@
       "pluginId": "rtc-volcengine",
       "providerKind": "volcengine",
       "displayName": "Volcengine RTC",
-      "defaultSelected": true
+      "defaultSelected": true,
+      "adapterStatus": "implemented"
     },
     {
       "pluginId": "rtc-aliyun",
       "providerKind": "aliyun",
-      "displayName": "Aliyun RTC"
+      "displayName": "Aliyun RTC",
+      "adapterStatus": "implemented"
     },
     {
       "pluginId": "rtc-tencent",
       "providerKind": "tencent",
-      "displayName": "Tencent RTC"
+      "displayName": "Tencent RTC",
+      "adapterStatus": "implemented"
     },
     {
       "pluginId": "rtc-agora",
       "providerKind": "agora",
-      "displayName": "Agora RTC"
+      "displayName": "Agora RTC",
+      "adapterStatus": "implemented"
     },
     {
       "pluginId": "rtc-livekit",
       "providerKind": "livekit",
-      "displayName": "LiveKit RTC"
+      "displayName": "LiveKit RTC",
+      "adapterStatus": "implemented"
+    },
+    {
+      "pluginId": "rtc-huawei",
+      "providerKind": "huawei",
+      "displayName": "Huawei Cloud RTC",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-netease",
+      "providerKind": "netease",
+      "displayName": "NetEase Yunxin RTC",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-zego",
+      "providerKind": "zego",
+      "displayName": "ZEGO RTC",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-baidu",
+      "providerKind": "baidu",
+      "displayName": "Baidu Cloud RTC",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-rongcloud",
+      "providerKind": "rongcloud",
+      "displayName": "RongCloud RTC",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-zoom",
+      "providerKind": "zoom",
+      "displayName": "Zoom Video SDK",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-twilio",
+      "providerKind": "twilio",
+      "displayName": "Twilio Video",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-aws-chime-sdk",
+      "providerKind": "aws-chime-sdk",
+      "displayName": "Amazon Chime SDK",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-azure-communication-services",
+      "providerKind": "azure-communication-services",
+      "displayName": "Azure Communication Services",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-jitsi",
+      "providerKind": "jitsi",
+      "displayName": "Jitsi Meet",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-100ms",
+      "providerKind": "100ms",
+      "displayName": "100ms RTC",
+      "adapterStatus": "planned"
+    },
+    {
+      "pluginId": "rtc-daily",
+      "providerKind": "daily",
+      "displayName": "Daily.co RTC",
+      "adapterStatus": "planned"
     }
   ],
   "precedence": ["tenant_override", "deployment_profile", "global_default"]

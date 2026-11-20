@@ -1,0 +1,52 @@
+{
+  "provider": "100ms",
+  "displayName": "100ms RTC",
+  "description": "100ms(HMS)实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "100ms租户ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "App ID", "type": "string", "required": true, "placeholder": "如 100ms-app-001"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["100ms_app_id"], "default": "100ms_app_id", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.100ms.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://api.100ms.live"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "api.100ms.live"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "v2"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(100ms App Token)",
+      "fields": [
+        {"key": "credentialRef", "label": "App Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/100ms/app-secret"}
+      ]
+    },
+    {
+      "role": "cloud_api_signing",
+      "label": "云API签名",
+      "description": "用于调用100ms Management API(Active Query)",
+      "fields": [
+        {"key": "credentialRef", "label": "App ID", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/100ms/api-app-id"},
+        {"key": "credentialFingerprint", "label": "App Secret", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/100ms/api-app-secret"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/100ms/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "App ID", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.100ms.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["in", "global"], "default": "in"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "cloud-mix", "data-channel"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

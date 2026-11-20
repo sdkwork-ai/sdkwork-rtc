@@ -9,12 +9,6 @@ export interface RtcProviderCredential {
   credentialLabel: string;
   /** Reference to secret-managed provider credential material. Raw provider secrets are never returned by the RTC API. */
   credentialRef: string;
-  /** Secret shape recorded for the credential (for example secret_text or access_key_pair). */
-  credentialKind?: string | null;
-  /** Whether sealed secret material is stored for this credential. */
-  secretConfigured?: boolean;
-  /** Non-reversible masked preview of the stored secret. */
-  secretMaskedLabel?: string | null;
   credentialFingerprint?: string | null;
   secretVersion?: string | null;
   status: 'active' | 'pending' | 'disabled' | 'revoked' | 'expired';

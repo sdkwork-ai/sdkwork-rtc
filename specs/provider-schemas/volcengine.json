@@ -2,6 +2,7 @@
   "provider": "volcengine",
   "displayName": "火山引擎 RTC",
   "description": "火山引擎实时音视频RTC提供方",
+  "adapterStatus": "implemented",
   "accountFields": [
     {"key": "externalTenantId", "label": "火山引擎账号ID", "type": "string", "required": false},
     {"key": "cloudAccountId", "label": "云账号ID", "type": "string", "required": false},

@@ -1,0 +1,43 @@
+{
+  "provider": "jitsi",
+  "displayName": "Jitsi Meet",
+  "description": "Jitsi/JaaS开源实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "JaaS租户ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "App ID", "type": "string", "required": true, "placeholder": "如 jitsi-jaas-app-001"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["jitsi_app_id"], "default": "jitsi_app_id", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.jitsi.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://api.jitsi.net"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "api.jitsi.net"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "v1"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(JWT RS256私钥)",
+      "fields": [
+        {"key": "credentialRef", "label": "Private Key", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/jitsi/private-key"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证Webhook回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/jitsi/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "App ID", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.jitsi.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["global", "eu", "us"], "default": "global"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "data-channel"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

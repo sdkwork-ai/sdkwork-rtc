@@ -197,6 +197,7 @@ impl RtcPostgresProviderProfileRepository {
         tenant_id: &str,
         organization_id: &str,
         provider: Option<&str>,
+        environment: Option<&str>,
         offset: usize,
         limit: usize,
         q: Option<&str>,
@@ -213,6 +214,11 @@ impl RtcPostgresProviderProfileRepository {
             let param = format!("${next_param}");
             next_param += 1;
             where_parts.push(format!("provider = {param}"));
+        }
+        if environment.is_some() {
+            let param = format!("${next_param}");
+            next_param += 1;
+            where_parts.push(format!("environment = {param}"));
         }
         let needle = q
             .map(str::trim)
@@ -243,6 +249,9 @@ impl RtcPostgresProviderProfileRepository {
             .bind(parse_i64_field("organization_id", organization_id)?);
         if let Some(provider) = provider {
             query = query.bind(provider);
+        }
+        if let Some(environment) = environment {
+            query = query.bind(environment);
         }
         if let Some(pattern) = needle.as_deref() {
             query = query
@@ -472,7 +481,7 @@ fn postgres_upsert_provider_profile_sql() -> &'static str {
         NULLIF($31::text, '')::timestamp,
         $32
     )
-    ON CONFLICT(tenant_id, organization_id, provider, code) DO UPDATE SET
+    ON CONFLICT(tenant_id, organization_id, provider, code) WHERE deleted_at IS NULL DO UPDATE SET
         uuid = excluded.uuid,
         name = excluded.name,
         status = excluded.status,

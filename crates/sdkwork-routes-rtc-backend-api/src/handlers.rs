@@ -22,8 +22,9 @@ use crate::responses::{
 };
 use crate::service::{
     RtcBackendApiService, RtcBackendListQuery, RtcBackendListRequest, RtcCloseMediaSessionRequest,
-    RtcCreateRoomCommand, RtcListData, RtcProviderQueryJobCreateRequest, RtcProviderRouteCommand,
-    RtcProviderRouteDisableRequest, RtcProviderWebhookIngress,
+    RtcCreateRoomCommand, RtcListData, RtcProviderDefaultsCommand,
+    RtcProviderQueryJobCreateRequest, RtcProviderRouteCommand, RtcProviderRouteDisableRequest,
+    RtcProviderWebhookIngress,
 };
 
 fn api_list_data<T: serde::Serialize>(
@@ -122,6 +123,27 @@ pub async fn create_provider_account(
             .await,
     )?;
     Ok(api_item(result, &trace_id))
+}
+
+pub async fn create_provider_defaults(
+    State(service): State<Arc<dyn RtcBackendApiService>>,
+    Extension(web_context): Extension<WebRequestContext>,
+    Extension(context): Extension<AppContext>,
+    Json(body): Json<RtcProviderDefaultsCommand>,
+) -> Result<Response, RtcBackendHandlerError> {
+    let trace_id = resolved_trace_id(&web_context);
+    let result = map_handler_error(
+        &trace_id,
+        service
+            .create_provider_defaults(
+                context.tenant_id,
+                context.organization_id,
+                context.actor_id,
+                body,
+            )
+            .await,
+    )?;
+    Ok(api_created(result, &trace_id))
 }
 
 pub async fn retrieve_provider_account(
@@ -945,6 +967,7 @@ fn list_request(context: &AppContext, query: RtcBackendListQuery) -> RtcBackendL
         organization_id: context.organization_id.clone(),
         provider: query.provider,
         status: query.status,
+        environment: query.environment,
         owner_user_id: query.owner_user_id,
         created_after: query.created_after,
         page: query.page,

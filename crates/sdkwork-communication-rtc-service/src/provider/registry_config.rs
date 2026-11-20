@@ -4,7 +4,9 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::provider::registry::StaticProviderRegistry;
-use crate::provider::schema::plugin_descriptor_from_provider_schema;
+use crate::provider::schema::{
+    ADAPTER_STATUS_IMPLEMENTED, ADAPTER_STATUS_PLANNED, plugin_descriptor_from_provider_schema,
+};
 
 pub const PLATFORM_DEFAULT_PROVIDER_REGISTRY_JSON: &str =
     include_str!("../../../../specs/provider-registry/platform-default.json");
@@ -29,10 +31,28 @@ pub struct ProviderRegistryPluginEntry {
     pub default_selected: bool,
     #[serde(default = "default_tenant_override_allowed")]
     pub tenant_override_allowed: bool,
+    /// `implemented` kinds have a runtime plugin factory; `planned` kinds are
+    /// catalog-only and are skipped by every registry the runtime selects from.
+    #[serde(default = "default_adapter_status")]
+    pub adapter_status: String,
 }
 
 fn default_tenant_override_allowed() -> bool {
     true
+}
+
+fn default_adapter_status() -> String {
+    ADAPTER_STATUS_IMPLEMENTED.to_string()
+}
+
+impl ProviderRegistryPluginEntry {
+    pub fn is_implemented(&self) -> bool {
+        self.adapter_status == ADAPTER_STATUS_IMPLEMENTED
+    }
+
+    pub fn is_planned(&self) -> bool {
+        self.adapter_status == ADAPTER_STATUS_PLANNED
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,12 +97,39 @@ pub fn platform_default_provider_kinds() -> Vec<String> {
         .collect()
 }
 
+/// Provider kinds the runtime can actually serve: only these get a plugin
+/// factory registered and a descriptor in the binding registry.
+pub fn platform_default_implemented_provider_kinds() -> Vec<String> {
+    platform_default_provider_registry_manifest()
+        .plugins
+        .iter()
+        .filter(|entry| entry.is_implemented())
+        .map(|entry| entry.provider_kind.clone())
+        .collect()
+}
+
+/// Catalog entries declared but without a runtime adapter yet. Configuration
+/// writes against these kinds are rejected with an explicit adapter-pending
+/// error instead of a generic missing-provider failure.
+pub fn platform_default_planned_provider_kinds() -> Vec<String> {
+    platform_default_provider_registry_manifest()
+        .plugins
+        .iter()
+        .filter(|entry| entry.is_planned())
+        .map(|entry| entry.provider_kind.clone())
+        .collect()
+}
+
 pub fn load_static_provider_registry(
     json: &str,
 ) -> Result<StaticProviderRegistry, ProviderRegistryConfigError> {
     let manifest = parse_provider_registry_manifest(json)?;
     let mut descriptors = Vec::with_capacity(manifest.plugins.len());
-    for entry in manifest.plugins {
+    for entry in manifest
+        .plugins
+        .into_iter()
+        .filter(|entry| entry.is_implemented())
+    {
         descriptors.push(descriptor_from_entry(&entry)?);
     }
     Ok(StaticProviderRegistry::new(descriptors))
@@ -196,6 +243,60 @@ mod tests {
                     plugin.plugin_id
                 );
             }
+        }
+    }
+
+    #[test]
+    fn catalog_declares_industry_vendor_landscape_with_adapter_status() {
+        let manifest = platform_default_provider_registry_manifest();
+        let implemented = platform_default_implemented_provider_kinds();
+        let planned = platform_default_planned_provider_kinds();
+        assert_eq!(
+            implemented.len() + planned.len(),
+            manifest.plugins.len(),
+            "every catalog entry must be either implemented or planned"
+        );
+        for kind in &implemented {
+            assert!(
+                !planned.contains(kind),
+                "kind {kind} must not be both implemented and planned"
+            );
+        }
+        // Planned industry vendors stay catalog-only until their adapter ships.
+        for kind in [
+            "huawei",
+            "netease",
+            "zego",
+            "baidu",
+            "rongcloud",
+            "zoom",
+            "twilio",
+            "aws-chime-sdk",
+            "azure-communication-services",
+            "jitsi",
+            "100ms",
+            "daily",
+        ] {
+            assert!(
+                planned.contains(&kind.to_string()),
+                "missing planned vendor {kind}"
+            );
+        }
+    }
+
+    #[test]
+    fn static_registry_excludes_planned_catalog_entries() {
+        let registry = load_static_provider_registry(PLATFORM_DEFAULT_PROVIDER_REGISTRY_JSON)
+            .expect("platform-default registry must load");
+        let rtc_plugins = registry.plugins_for_domain(ProviderDomain::Rtc);
+        for plugin in rtc_plugins {
+            assert!(
+                platform_default_planned_provider_kinds()
+                    .iter()
+                    .all(|kind| kind != &plugin.provider_kind),
+                "planned kind {} must not be selectable in the runtime registry",
+                plugin.provider_kind
+            );
         }
     }
 }

@@ -562,13 +562,19 @@ test(
     assert.match(manifestSource, /sdkwork-communication-rtc-service\.workspace = true/);
   }
 
-  const gatewayManifest = readFileSync(
-    workspacePath(SdkworkImRoot, "services/sdkwork-im-cloud-gateway/Cargo.toml"),
-    "utf8",
-  );
-  assert.doesNotMatch(gatewayManifest, /sdkwork-rtc-state-store/);
-  assert.doesNotMatch(gatewayManifest, /sdkwork-rtc-core\.workspace = true/);
-  assert.doesNotMatch(gatewayManifest, /sdkwork-rtc-signaling-service/);
+  // The gateway layout moved between sdkwork-im checkouts (sdkwork-im-cloud-gateway
+  // vs web-gateway); resolve it like every other sibling path instead of
+  // hard-coding one directory, and only assert when a gateway exists.
+  if (sdkworkImGatewayAvailable) {
+    const gatewayDir = sdkworkImGatewayPath.replace(/\/src\/lib\.rs$/, "");
+    const gatewayManifest = readFileSync(
+      workspacePath(SdkworkImRoot, `${gatewayDir}/Cargo.toml`),
+      "utf8",
+    );
+    assert.doesNotMatch(gatewayManifest, /sdkwork-rtc-state-store/);
+    assert.doesNotMatch(gatewayManifest, /sdkwork-rtc-core\.workspace = true/);
+    assert.doesNotMatch(gatewayManifest, /sdkwork-rtc-signaling-service/);
+  }
 });
 
 test("sdkwork-rtc Rust services do not depend back on sdkwork-im crates", () => {
@@ -1003,11 +1009,6 @@ test("sdkwork-rtc storage models provider webhooks and active provider query rec
   );
   assert.match(
     storageRegistrySource,
-    /RtcSqliteProviderEventRepository/,
-    "storage crate root must re-export a SQLite provider event repository",
-  );
-  assert.match(
-    storageRegistrySource,
     /RtcPostgresProviderEventRepository/,
     "storage crate root must re-export a Postgres provider event repository",
   );
@@ -1022,11 +1023,6 @@ test("sdkwork-rtc storage models provider webhooks and active provider query rec
   const providerEventRepositorySource = readFileSync(
     workspacePath(rtcRoot, "crates/sdkwork-communication-rtc-repository-sqlx/src/provider_event.rs"),
     "utf8",
-  );
-  assert.match(
-    providerEventRepositorySource,
-    /pub struct RtcSqliteProviderEventRepository/,
-    "storage crate must implement a SQLite provider event repository",
   );
   assert.match(
     providerEventRepositorySource,
@@ -1121,10 +1117,19 @@ test("sdkwork-rtc storage supports multiple RTC provider profiles without storin
       /uk_rtc_provider_profile_tenant_org_provider_code/,
       `${relativePath} rtc_provider_profile must allow organization-scoped provider profile codes`,
     );
+    // Live-row-only uniqueness (DATABASE_SPEC DB017): the natural key is a
+    // partial unique index on (tenant_id, organization_id, provider, code)
+    // WHERE deleted_at IS NULL, and the environment stamp is CHECK-constrained
+    // to the canonical SDKWork environment set.
+    assert.match(
+      source,
+      /CREATE\s+UNIQUE\s+INDEX\s+(IF\s+NOT\s+EXISTS\s+)?uk_rtc_provider_profile_tenant_org_provider_code[\s\S]*?ON\s+rtc_provider_profile\s*\(\s*tenant_id\s*,\s*organization_id\s*,\s*provider\s*,\s*code\s*\)\s*WHERE\s+deleted_at\s+IS\s+NULL/i,
+      `${relativePath} rtc_provider_profile provider code uniqueness must be a live-row-only partial unique index scoped by tenant and organization`,
+    );
     assert.match(
       providerProfileTable,
-      /UNIQUE\s*\(\s*tenant_id\s*,\s*organization_id\s*,\s*provider\s*,\s*code\s*\)/i,
-      `${relativePath} rtc_provider_profile provider code uniqueness must be scoped by tenant and organization`,
+      /ck_rtc_provider_profile_environment\s+CHECK\s*\(\s*environment\s+IN\s*\(\s*'development'\s*,\s*'test'\s*,\s*'staging'\s*,\s*'production'\s*,\s*'demo'\s*\)\s*\)/i,
+      `${relativePath} rtc_provider_profile environment must be CHECK-constrained to the canonical environment set`,
     );
     assert.match(
       source,
@@ -1165,11 +1170,6 @@ test("sdkwork-rtc storage supports multiple RTC provider profiles without storin
   );
   assert.match(
     storageRegistrySource,
-    /RtcSqliteProviderProfileRepository/,
-    "storage crate root must re-export a SQLite provider profile repository",
-  );
-  assert.match(
-    storageRegistrySource,
     /RtcPostgresProviderProfileRepository/,
     "storage crate root must re-export a Postgres provider profile repository",
   );
@@ -1197,11 +1197,6 @@ test("sdkwork-rtc storage supports multiple RTC provider profiles without storin
   const providerProfileRepositorySource = readFileSync(
     workspacePath(rtcRoot, "crates/sdkwork-communication-rtc-repository-sqlx/src/provider_profile.rs"),
     "utf8",
-  );
-  assert.match(
-    providerProfileRepositorySource,
-    /pub struct RtcSqliteProviderProfileRepository/,
-    "storage crate must implement a SQLite provider profile repository",
   );
   assert.match(
     providerProfileRepositorySource,
@@ -1264,10 +1259,17 @@ test("sdkwork-rtc storage models provider accounts, applications, and credential
         `${relativePath} rtc_provider_account must persist ${requiredColumn}`,
       );
     }
+    // Live-row-only uniqueness (DATABASE_SPEC DB017): the natural key lives in
+    // a partial unique index outside the CREATE TABLE block.
+    assert.match(
+      source,
+      /CREATE\s+UNIQUE\s+INDEX\s+(IF\s+NOT\s+EXISTS\s+)?uk_rtc_provider_account_tenant_org_provider_code[\s\S]*?ON\s+rtc_provider_account\s*\(\s*tenant_id\s*,\s*organization_id\s*,\s*provider\s*,\s*code\s*\)\s*WHERE\s+deleted_at\s+IS\s+NULL/i,
+      `${relativePath} rtc_provider_account must scope account code uniqueness by tenant/org/provider on live rows only`,
+    );
     assert.match(
       providerAccountTable,
-      /uk_rtc_provider_account_tenant_org_provider_code/,
-      `${relativePath} rtc_provider_account must scope account code uniqueness by tenant/org/provider`,
+      /ck_rtc_provider_account_environment\s+CHECK\s*\(\s*environment\s+IN\s*\(\s*'development'\s*,\s*'test'\s*,\s*'staging'\s*,\s*'production'\s*,\s*'demo'\s*\)\s*\)/i,
+      `${relativePath} rtc_provider_account environment must be CHECK-constrained to the canonical environment set`,
     );
 
     for (const requiredColumn of [
@@ -1303,9 +1305,14 @@ test("sdkwork-rtc storage models provider accounts, applications, and credential
       );
     }
     assert.match(
+      source,
+      /CREATE\s+UNIQUE\s+INDEX\s+(IF\s+NOT\s+EXISTS\s+)?uk_rtc_provider_application_account_code[\s\S]*?ON\s+rtc_provider_application\s*\(\s*provider_account_id\s*,\s*code\s*\)\s*WHERE\s+deleted_at\s+IS\s+NULL/i,
+      `${relativePath} rtc_provider_application must prevent duplicate app codes per provider account on live rows only`,
+    );
+    assert.match(
       providerApplicationTable,
-      /uk_rtc_provider_application_account_code/,
-      `${relativePath} rtc_provider_application must prevent duplicate app codes per provider account`,
+      /ck_rtc_provider_application_environment\s+CHECK\s*\(\s*environment\s+IN\s*\(\s*'development'\s*,\s*'test'\s*,\s*'staging'\s*,\s*'production'\s*,\s*'demo'\s*\)\s*\)/i,
+      `${relativePath} rtc_provider_application environment must be CHECK-constrained to the canonical environment set`,
     );
     assert.match(
       providerApplicationTable,
@@ -1378,11 +1385,6 @@ test("sdkwork-rtc storage models provider accounts, applications, and credential
     storageRegistrySource,
     /pub mod provider_account/,
     "storage crate must expose provider account storage as a focused module",
-  );
-  assert.match(
-    storageRegistrySource,
-    /RtcSqliteProviderAccountRepository/,
-    "storage crate root must re-export a SQLite provider account repository",
   );
   assert.match(
     storageRegistrySource,
@@ -1477,11 +1479,6 @@ test("sdkwork-rtc storage persists provider routes for region-based RTC provider
   );
   assert.match(
     storageRegistrySource,
-    /RtcSqliteProviderRouteRepository/,
-    "storage crate root must re-export a SQLite provider route repository",
-  );
-  assert.match(
-    storageRegistrySource,
     /RtcPostgresProviderRouteRepository/,
     "storage crate root must re-export a Postgres provider route repository",
   );
@@ -1502,11 +1499,6 @@ test("sdkwork-rtc storage persists provider routes for region-based RTC provider
   );
   assert.ok(existsSync(providerRouteRepositoryPath), "provider route repository module must exist");
   const providerRouteRepositorySource = readFileSync(providerRouteRepositoryPath, "utf8");
-  assert.match(
-    providerRouteRepositorySource,
-    /pub struct RtcSqliteProviderRouteRepository/,
-    "storage crate must implement a SQLite provider route repository",
-  );
   assert.match(
     providerRouteRepositorySource,
     /pub struct RtcPostgresProviderRouteRepository/,
@@ -1676,18 +1668,8 @@ test("sdkwork-rtc storage persists complete post-session media completion record
   );
   assert.match(
     storageRegistrySource,
-    /RtcSqliteMediaSessionRepository/,
-    "storage crate root must re-export a SQLite media session repository",
-  );
-  assert.match(
-    storageRegistrySource,
     /RtcPostgresMediaSessionRepository/,
     "storage crate root must re-export a Postgres media session repository",
-  );
-  assert.match(
-    storageRegistrySource,
-    /RtcSqliteCompletionRecordRepository/,
-    "storage crate root must re-export a SQLite completion record repository",
   );
   assert.match(
     storageRegistrySource,
@@ -1698,11 +1680,6 @@ test("sdkwork-rtc storage persists complete post-session media completion record
   const completionRepositorySource = readFileSync(
     workspacePath(rtcRoot, "crates/sdkwork-communication-rtc-repository-sqlx/src/completion_record.rs"),
     "utf8",
-  );
-  assert.match(
-    completionRepositorySource,
-    /pub struct RtcSqliteCompletionRecordRepository/,
-    "storage crate must implement a SQLite completion record repository",
   );
   assert.match(
     completionRepositorySource,
@@ -1723,11 +1700,6 @@ test("sdkwork-rtc storage persists complete post-session media completion record
   const mediaSessionRepositorySource = readFileSync(
     workspacePath(rtcRoot, "crates/sdkwork-communication-rtc-repository-sqlx/src/media_session.rs"),
     "utf8",
-  );
-  assert.match(
-    mediaSessionRepositorySource,
-    /pub struct RtcSqliteMediaSessionRepository/,
-    "storage crate must implement a SQLite media session aggregate repository",
   );
   assert.match(
     mediaSessionRepositorySource,

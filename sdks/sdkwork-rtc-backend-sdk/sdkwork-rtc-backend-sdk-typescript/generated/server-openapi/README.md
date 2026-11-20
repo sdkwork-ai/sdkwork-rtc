@@ -59,6 +59,7 @@ const client = new SdkworkBackendClient({
 - `client.rtcProviderAccounts` - rtc_provider_accounts API
 - `client.rtcProviderApplications` - rtc_provider_applications API
 - `client.rtcProviderCredentials` - rtc_provider_credentials API
+- `client.rtcProviderDefaults` - rtc_provider_defaults API
 - `client.rtcProviderPlugins` - rtc_provider_plugins API
 - `client.rtcProviderProfiles` - rtc_provider_profiles API
 - `client.rtcProviderQueryJobs` - rtc_provider_query_jobs API
@@ -113,6 +114,9 @@ const params = {
   cursor: 'cursor',
   sort: 'sort',
   q: 'q',
+  provider: 'provider',
+  status: 'active',
+  environment: 'development',
 };
 const result = await client.rtcProviderAccounts.rtc.providerAccounts.list(params);
 ```
@@ -133,6 +137,18 @@ const providerCredentialId = '1';
 const result = await client.rtcProviderCredentials.rtc.providerCredentials.retrieve(providerCredentialId);
 ```
 
+### rtc_provider_defaults
+
+```typescript
+// Rtc provider Defaults create.
+const body = {};
+const idempotencyKey = 'Idempotency-Key';
+const params = {
+  idempotencyKey,
+};
+const result = await client.rtcProviderDefaults.rtc.providerDefaults.create(body, params);
+```
+
 ### rtc_provider_plugins
 
 ```typescript
@@ -150,6 +166,9 @@ const params = {
   cursor: 'cursor',
   sort: 'sort',
   q: 'q',
+  provider: 'provider',
+  status: 'active',
+  environment: 'development',
 };
 const result = await client.rtcProviderProfiles.rtc.providerProfiles.list(params);
 ```

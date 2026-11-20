@@ -522,6 +522,7 @@ impl RtcPostgresProviderAccountRepository {
         organization_id: &str,
         provider: Option<&str>,
         status: Option<RtcProviderAccountStatus>,
+        environment: Option<&str>,
         offset: usize,
         limit: usize,
         q: Option<&str>,
@@ -541,6 +542,10 @@ impl RtcPostgresProviderAccountRepository {
         }
         if status.is_some() {
             where_parts.push(format!("status = ${next_param}"));
+            next_param += 1;
+        }
+        if environment.is_some() {
+            where_parts.push(format!("environment = ${next_param}"));
             next_param += 1;
         }
         let needle = q
@@ -574,6 +579,9 @@ impl RtcPostgresProviderAccountRepository {
         }
         if let Some(status) = status {
             query = query.bind(status);
+        }
+        if let Some(environment) = environment {
+            query = query.bind(environment);
         }
         if let Some(pattern) = needle.as_deref() {
             query = query
@@ -748,7 +756,7 @@ fn postgres_upsert_provider_account_sql() -> &'static str {
         NULLIF($14::text, '')::timestamp, $15, $16, $17, $18::text::timestamp,
         $19::text::timestamp, $20, NULLIF($21::text, '')::timestamp, $22
     )
-    ON CONFLICT(tenant_id, organization_id, provider, code) DO UPDATE SET
+    ON CONFLICT(tenant_id, organization_id, provider, code) WHERE deleted_at IS NULL DO UPDATE SET
         uuid = excluded.uuid,
         name = excluded.name,
         status = excluded.status,
@@ -781,7 +789,7 @@ fn postgres_upsert_provider_application_sql() -> &'static str {
         $16, $17, $18, $19, NULLIF($20::text, '')::timestamp, $21, $22, $23,
         $24::text::timestamp, $25::text::timestamp, $26, NULLIF($27::text, '')::timestamp, $28
     )
-    ON CONFLICT(provider_account_id, code) DO UPDATE SET
+    ON CONFLICT(provider_account_id, code) WHERE deleted_at IS NULL DO UPDATE SET
         uuid = excluded.uuid,
         provider = excluded.provider,
         name = excluded.name,

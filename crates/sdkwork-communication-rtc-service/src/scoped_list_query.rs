@@ -8,6 +8,9 @@ pub struct RtcScopedListQuery {
     pub params: RtcListWindowParams,
     pub provider: Option<String>,
     pub status: Option<String>,
+    /// Canonical environment stamp filter (development/test/staging/production/
+    /// demo) for the environment-stamped provider tables.
+    pub environment: Option<String>,
     pub provider_account_id: Option<String>,
     pub provider_application_id: Option<String>,
     pub media_session_id: Option<String>,
@@ -40,12 +43,20 @@ impl RtcScopedListQuery {
         self
     }
 
+    pub fn with_environment(mut self, environment: impl Into<String>) -> Self {
+        self.environment = Some(environment.into());
+        self
+    }
+
     pub fn with_provider_account_id(mut self, provider_account_id: impl Into<String>) -> Self {
         self.provider_account_id = Some(provider_account_id.into());
         self
     }
 
-    pub fn with_provider_application_id(mut self, provider_application_id: impl Into<String>) -> Self {
+    pub fn with_provider_application_id(
+        mut self,
+        provider_application_id: impl Into<String>,
+    ) -> Self {
         self.provider_application_id = Some(provider_application_id.into());
         self
     }

@@ -29,6 +29,7 @@ pub struct RtcBackendListRequest {
     pub organization_id: Option<String>,
     pub provider: Option<String>,
     pub status: Option<String>,
+    pub environment: Option<String>,
     pub owner_user_id: Option<String>,
     pub created_after: Option<String>,
     pub page: Option<u32>,
@@ -43,6 +44,7 @@ pub struct RtcBackendListRequest {
 pub struct RtcBackendListQuery {
     pub provider: Option<String>,
     pub status: Option<String>,
+    pub environment: Option<String>,
     pub owner_user_id: Option<String>,
     pub created_after: Option<String>,
     pub page: Option<u32>,
@@ -83,6 +85,38 @@ impl From<&RtcBackendListRequest> for sdkwork_communication_rtc_service::RtcList
 pub struct RtcCreateRoomCommand {
     pub title: String,
     pub room_id: Option<String>,
+}
+
+/// One-click bootstrap of the built-in provider account chain (account ->
+/// application -> credentials -> profile -> route) for every implemented
+/// provider kind in the vendor catalog. Idempotent: creates only what is
+/// missing and never rewrites an existing row (storage-center
+/// provider-account-defaults parity).
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RtcProviderDefaultsCommand {
+    /// Optional canonical environment stamp for rows this bootstrap creates.
+    /// Defaults to the resolved runtime environment.
+    pub environment: Option<String>,
+}
+
+/// Idempotent bootstrap report: per-entity created counts plus the accounts
+/// that already existed and were left untouched. Credentials are always seeded
+/// as references only — secret material is never generated or stored here.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RtcProviderDefaultsReport {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub environment: String,
+    pub implemented_providers: Vec<String>,
+    pub created_accounts: u32,
+    pub created_applications: u32,
+    pub created_credentials: u32,
+    pub created_profiles: u32,
+    pub created_routes: u32,
+    pub skipped_accounts: u32,
+    pub credential_seeded: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -320,6 +354,14 @@ pub trait RtcBackendApiService: Send + Sync + 'static {
         actor_id: String,
         request: RtcProviderAccountCommand,
     ) -> RtcBackendApiFuture<RtcProviderAccount>;
+
+    fn create_provider_defaults(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        request: RtcProviderDefaultsCommand,
+    ) -> RtcBackendApiFuture<RtcProviderDefaultsReport>;
 
     fn retrieve_provider_account(
         &self,

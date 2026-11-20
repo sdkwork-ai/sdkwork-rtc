@@ -101,6 +101,11 @@
         "source": "openapi"
       },
       {
+        "code": "rtc.provider_defaults.write",
+        "description": "Permission rtc.provider_defaults.write",
+        "source": "openapi"
+      },
+      {
         "code": "rtc.provider_schemas.read",
         "description": "Permission rtc.provider_schemas.read",
         "source": "openapi"

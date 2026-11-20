@@ -13,6 +13,7 @@ use sdkwork_communication_rtc_repository_sqlx::{
 };
 use sdkwork_communication_rtc_service::rtc_persistence_required;
 use sdkwork_database_sqlx::DatabasePool;
+use sdkwork_routes_rtc_backend_api::service::RtcProviderDefaultsCommand;
 use sdkwork_rtc_plugin_bootstrap::build_builtin_provider_registry;
 use sdkwork_rtc_service_host::RtcProductService;
 use sdkwork_web_bootstrap::{
@@ -58,9 +59,60 @@ async fn hydrate_service_from_persistence(service: &mut RtcProductService) -> Re
     let organization_id =
         std::env::var("SDKWORK_RTC_HYDRATE_ORGANIZATION_ID").unwrap_or_else(|_| "0".into());
     service
-        .hydrate_from_persistence(tenant_id, organization_id)
+        .hydrate_from_persistence(tenant_id.clone(), organization_id.clone())
         .await
         .map_err(|error| format!("hydrate RTC persistence: {error}"))?;
+    ensure_provider_defaults_on_boot(service, &tenant_id, &organization_id)
+        .await
+        .map_err(|error| format!("ensure RTC provider defaults: {error}"))?;
+    Ok(())
+}
+
+/// Idempotent boot-time provider defaults (storage-center
+/// `bootstrap_storage_provider_defaults_from_env` parity): completes any
+/// missing built-in provider chain for the console tenant after hydration.
+/// Creates only what is missing, seeds credential references only, and can be
+/// disabled with `SDKWORK_RTC_BOOTSTRAP_PROVIDER_ACCOUNTS=0|false|off`.
+async fn ensure_provider_defaults_on_boot(
+    service: &RtcProductService,
+    tenant_id: &str,
+    organization_id: &str,
+) -> Result<(), anyhow::Error> {
+    let enabled = std::env::var("SDKWORK_RTC_BOOTSTRAP_PROVIDER_ACCOUNTS")
+        .map(|value| {
+            !matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "0" | "false" | "off"
+            )
+        })
+        .unwrap_or(true);
+    if !enabled {
+        tracing::debug!(
+            target: "sdkwork.rtc.bootstrap",
+            "provider defaults bootstrap disabled via SDKWORK_RTC_BOOTSTRAP_PROVIDER_ACCOUNTS"
+        );
+        return Ok(());
+    }
+    use sdkwork_routes_rtc_backend_api::service::RtcBackendApiService;
+    let report = service
+        .create_provider_defaults(
+            tenant_id.to_string(),
+            Some(organization_id.to_string()),
+            "sdkwork-rtc-bootstrap".to_string(),
+            RtcProviderDefaultsCommand::default(),
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!("{error:?}"))?;
+    tracing::info!(
+        target: "sdkwork.rtc.bootstrap",
+        created_accounts = report.created_accounts,
+        created_applications = report.created_applications,
+        created_credentials = report.created_credentials,
+        created_profiles = report.created_profiles,
+        created_routes = report.created_routes,
+        skipped_accounts = report.skipped_accounts,
+        "RTC provider defaults ensured for console tenant"
+    );
     Ok(())
 }
 

@@ -77,9 +77,9 @@ See [TECH-rtc-im-boundary.md](TECH-rtc-im-boundary.md) for dependency direction.
 | `crates/sdkwork-rtc-service-host` | Drive-backed recording import |
 | `crates/sdkwork-api-rtc-standalone-gateway` | Production HTTP entrypoint |
 | `plugins/rtc-*` | Vendor provider adapters |
-| `specs/provider-registry/` | Default provider plugin roster (`platform-default.json`) |
+| `specs/provider-registry/` | Default provider plugin roster (`platform-default.json`); entries carry `adapterStatus` — `implemented` kinds register runtime factories, `planned` kinds are catalog-only industry vendors rejected by configuration writes |
 | `specs/recording-policy/` | Recording artifact retention and lifecycle thresholds (`platform-default.json`) |
-| `specs/provider-schemas/` | Provider admin schemas and capability declarations |
+| `specs/provider-schemas/` | Provider admin schemas and capability declarations for the whole vendor catalog (implemented + planned) |
 | `sdks/` | SDK generation workspaces and route manifests |
 | `apps/` | Runnable client application roots |
 

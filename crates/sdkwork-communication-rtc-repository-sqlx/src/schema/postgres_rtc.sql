@@ -272,13 +272,16 @@ CREATE TABLE rtc_provider_account (
     deleted_by BIGINT,
     PRIMARY KEY (id),
     CONSTRAINT uk_rtc_provider_account_uuid UNIQUE (uuid),
-    CONSTRAINT uk_rtc_provider_account_tenant_org_provider_code UNIQUE (
-        tenant_id,
-        organization_id,
-        provider,
-        code
+    CONSTRAINT ck_rtc_provider_account_environment CHECK (
+        environment IN ('development', 'test', 'staging', 'production', 'demo')
     )
 );
+
+-- Live-row uniqueness only (DATABASE_SPEC DB017): soft-deleted accounts free
+-- their (tenant, organization, provider, code) key for re-provisioning.
+CREATE UNIQUE INDEX uk_rtc_provider_account_tenant_org_provider_code
+    ON rtc_provider_account (tenant_id, organization_id, provider, code)
+    WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_rtc_provider_account_scope_provider_status
     ON rtc_provider_account (tenant_id, organization_id, provider, status);
@@ -314,12 +317,16 @@ CREATE TABLE rtc_provider_application (
     deleted_by BIGINT,
     PRIMARY KEY (id),
     CONSTRAINT uk_rtc_provider_application_uuid UNIQUE (uuid),
-    CONSTRAINT uk_rtc_provider_application_account_code UNIQUE (
-        provider_account_id,
-        code
+    CONSTRAINT ck_rtc_provider_application_environment CHECK (
+        environment IN ('development', 'test', 'staging', 'production', 'demo')
     )
     -- idx_rtc_provider_application_scope_provider_status
 );
+
+-- Live-row uniqueness only (DATABASE_SPEC DB017).
+CREATE UNIQUE INDEX uk_rtc_provider_application_account_code
+    ON rtc_provider_application (provider_account_id, code)
+    WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_rtc_provider_application_scope_provider_status
     ON rtc_provider_application (tenant_id, organization_id, provider, status);
@@ -415,8 +422,15 @@ CREATE TABLE rtc_provider_profile (
     deleted_by BIGINT,
     PRIMARY KEY (id),
     CONSTRAINT uk_rtc_provider_profile_uuid UNIQUE (uuid),
-    CONSTRAINT uk_rtc_provider_profile_tenant_org_provider_code UNIQUE (tenant_id, organization_id, provider, code)
+    CONSTRAINT ck_rtc_provider_profile_environment CHECK (
+        environment IN ('development', 'test', 'staging', 'production', 'demo')
+    )
 );
+
+-- Live-row uniqueness only (DATABASE_SPEC DB017).
+CREATE UNIQUE INDEX uk_rtc_provider_profile_tenant_org_provider_code
+    ON rtc_provider_profile (tenant_id, organization_id, provider, code)
+    WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_rtc_provider_profile_tenant_status
     ON rtc_provider_profile (tenant_id, organization_id, status);

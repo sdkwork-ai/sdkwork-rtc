@@ -1,0 +1,53 @@
+{
+  "provider": "aws-chime-sdk",
+  "displayName": "Amazon Chime SDK",
+  "description": "Amazon Chime SDK实时音视频提供方（适配器待接入）",
+  "adapterStatus": "planned",
+  "accountFields": [
+    {"key": "externalTenantId", "label": "AWS Account ID", "type": "string", "required": false},
+    {"key": "cloudAccountId", "label": "云账号ID", "type": "string", "required": false}
+  ],
+  "applicationFields": [
+    {"key": "providerApplicationId", "label": "App Instance ARN", "type": "string", "required": true, "placeholder": "如 arn:aws:chime:us-east-1:123456789012:app-instance/xxx"},
+    {"key": "providerApplicationIdKind", "label": "应用ID类型", "type": "enum", "values": ["aws_chime_app_instance_arn"], "default": "aws_chime_app_instance_arn", "hidden": true},
+    {"key": "accessEndpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.aws-chime.local/session", "required": false},
+    {"key": "apiEndpoint", "label": "API端点", "type": "string", "default": "https://chime.us-east-1.amazonaws.com"},
+    {"key": "apiHost", "label": "API主机", "type": "string", "default": "chime.us-east-1.amazonaws.com"},
+    {"key": "apiVersion", "label": "API版本", "type": "string", "default": "2021-05-04"}
+  ],
+  "credentialRoles": [
+    {
+      "role": "rtc_token_signing",
+      "label": "RTC Token签名",
+      "description": "用于生成参与者凭证(Chime Join Token)",
+      "fields": [
+        {"key": "credentialRef", "label": "App Instance User Key", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/aws-chime-sdk/app-instance-user-key"}
+      ]
+    },
+    {
+      "role": "cloud_api_signing",
+      "label": "云API签名",
+      "description": "用于调用AWS Chime API(SigV4, Active Query)",
+      "fields": [
+        {"key": "credentialRef", "label": "Access Key ID", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/aws-chime-sdk/access-key-id"},
+        {"key": "credentialFingerprint", "label": "Secret Access Key", "type": "secret_ref", "required": true, "placeholder": "secret://rtc/aws-chime-sdk/secret-access-key"}
+      ]
+    },
+    {
+      "role": "webhook_signing",
+      "label": "Webhook签名",
+      "description": "用于验证EventBridge回调签名",
+      "fields": [
+        {"key": "credentialRef", "label": "Webhook密钥", "type": "secret_ref", "required": false, "placeholder": "secret://rtc/aws-chime-sdk/webhook"}
+      ]
+    }
+  ],
+  "profileFields": [
+    {"key": "providerAppId", "label": "App Instance ARN", "type": "string", "required": true},
+    {"key": "endpoint", "label": "接入端点", "type": "string", "default": "wss://rtc.aws-chime.local/session"},
+    {"key": "region", "label": "区域", "type": "enum", "values": ["us-east-1", "us-west-2", "eu-central-1", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2"], "default": "us-east-1"},
+    {"key": "credentialTtlSeconds", "label": "凭证有效期(秒)", "type": "number", "default": 3600, "min": 300, "max": 86400}
+  ],
+  "optionalCapabilities": ["recording", "artifact", "screen-share", "cloud-mix", "data-channel"],
+  "requiredCapabilities": ["session", "credential", "provider.webhook", "health", "media.audio", "media.video", "live.broadcast", "live.audience", "provider.event-normalization"]
+}

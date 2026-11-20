@@ -31,12 +31,13 @@ use sdkwork_communication_rtc_service::{
     RtcSessionTokenGrantRevocation, RtcStaleMediaSessionReconcileQuery, RtcTenantOrganizationScope,
     apply_list_window, assert_session_token_grant_matches_credential,
     build_session_token_grant_from_credential, evaluate_recording_lifecycle_action,
-    load_recording_policy_settings_from_env, media_session_create_idempotency_payload_hash,
-    media_session_idempotency_record_id, participant_credential_issue_idempotency_key,
+    load_provider_config_schema, load_recording_policy_settings_from_env,
+    media_session_create_idempotency_payload_hash, media_session_idempotency_record_id,
+    participant_credential_issue_idempotency_key,
     participant_credential_issue_idempotency_payload_hash, recording_lifecycle_cutoff_rfc3339,
     rfc3339_age_ms, rtc_allows_development_provider_placeholders,
-    rtc_allows_in_memory_only_runtime, session_reconcile_cutoff_rfc3339, utc_now_rfc3339_millis,
-    validate_provider_webhook_freshness,
+    rtc_allows_in_memory_only_runtime, rtc_runtime_environment, session_reconcile_cutoff_rfc3339,
+    utc_now_rfc3339_millis, validate_provider_webhook_freshness,
 };
 use sdkwork_routes_rtc_app_api::service::{
     RtcActiveProviderProfileListData, RtcAppApiError, RtcAppApiFuture, RtcAppApiService,
@@ -50,10 +51,11 @@ use sdkwork_routes_rtc_backend_api::service::{
     RtcBackendListRequest, RtcCloseMediaSessionRequest, RtcCreateRoomCommand, RtcListData,
     RtcMediaArtifactListData, RtcMediaSessionListData as RtcBackendMediaSessionListData,
     RtcProviderAccountListData, RtcProviderApplicationListData, RtcProviderCredentialListData,
-    RtcProviderProfileListData, RtcProviderQueryJobCreateRequest, RtcProviderQuerySnapshotListData,
-    RtcProviderRoute, RtcProviderRouteCommand, RtcProviderRouteDisableRequest,
-    RtcProviderRouteListData, RtcProviderRouteStatus, RtcProviderWebhookEventListData,
-    RtcProviderWebhookIngress, RtcQualitySampleListData, RtcRoomListData as RtcBackendRoomListData,
+    RtcProviderDefaultsCommand, RtcProviderDefaultsReport, RtcProviderProfileListData,
+    RtcProviderQueryJobCreateRequest, RtcProviderQuerySnapshotListData, RtcProviderRoute,
+    RtcProviderRouteCommand, RtcProviderRouteDisableRequest, RtcProviderRouteListData,
+    RtcProviderRouteStatus, RtcProviderWebhookEventListData, RtcProviderWebhookIngress,
+    RtcQualitySampleListData, RtcRoomListData as RtcBackendRoomListData,
 };
 
 use crate::plugin_registry::{RtcProviderPluginRegistry, RtcProviderPluginRegistryError};
@@ -1350,10 +1352,15 @@ impl RtcProductService {
                             &profile.organization_id,
                             request.organization_id.as_deref(),
                         )
+                        && profile.deleted_at.is_none()
                         && request
                             .provider
                             .as_deref()
                             .map_or(true, |provider| profile.provider == provider)
+                        && request
+                            .environment
+                            .as_deref()
+                            .map_or(true, |environment| profile.environment == environment)
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -1412,6 +1419,10 @@ impl RtcProductService {
                         && request.status.as_deref().map_or(true, |status| {
                             provider_account_status_key(&account.status) == status
                         })
+                        && request
+                            .environment
+                            .as_deref()
+                            .map_or(true, |environment| account.environment == environment)
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -1447,15 +1458,11 @@ impl RtcProductService {
         request: RtcProviderAccountCommand,
     ) -> Result<RtcProviderAccount, RtcBackendApiError> {
         let provider = normalized_required_string("provider", request.provider.as_str())?;
-        self.registry
-            .provider(provider.as_str())
-            .map_err(backend_error_from_registry)?;
+        ensure_provider_adapter_available(&self.registry, provider.as_str())?;
         let code = normalized_required_string("provider account code", request.code.as_str())?;
         let name = normalized_required_string("provider account name", request.name.as_str())?;
-        let environment = normalized_required_string(
-            "provider account environment",
-            request.environment.as_str(),
-        )?;
+        let environment =
+            normalized_environment("provider account environment", request.environment.as_str())?;
         let organization_id = organization_id.unwrap_or_else(|| "0".to_string());
         let now = utc_now_rfc3339_millis();
         let is_update = provider_account_id.is_some();
@@ -1560,6 +1567,306 @@ impl RtcProductService {
         .await
         .map_err(backend_error_from_product)?;
         Ok(account)
+    }
+
+    /// One-click provider defaults bootstrap (storage-center
+    /// provider-account-defaults parity): provisions the built-in
+    /// account -> application -> credentials -> profile -> route chain for
+    /// every implemented provider kind in the vendor catalog. Creates only
+    /// what is missing, never rewrites an existing row, and seeds credential
+    /// references only — secret material is never generated or stored here,
+    /// so the operator still enters the provider secret once in the console.
+    async fn ensure_provider_defaults_impl(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        request: RtcProviderDefaultsCommand,
+    ) -> Result<RtcProviderDefaultsReport, RtcBackendApiError> {
+        let environment = match request.environment.as_deref() {
+            Some(value) => normalized_environment("provider defaults environment", value)?,
+            None => normalized_environment("runtime environment", &rtc_runtime_environment())
+                .unwrap_or_else(|_| "production".to_string()),
+        };
+        let organization_id = organization_id.unwrap_or_else(|| "0".to_string());
+        let implemented_providers =
+            sdkwork_communication_rtc_service::platform_default_implemented_provider_kinds();
+        let default_provider_kind = self.registry.default_provider_key().map(str::to_owned);
+        let mut report = RtcProviderDefaultsReport {
+            tenant_id: tenant_id.clone(),
+            organization_id: organization_id.clone(),
+            environment: environment.clone(),
+            implemented_providers: implemented_providers.clone(),
+            ..RtcProviderDefaultsReport::default()
+        };
+
+        for provider in &implemented_providers {
+            let schema = load_provider_config_schema(provider).ok_or_else(|| {
+                RtcBackendApiError::Unavailable(format!(
+                    "RTC provider config schema missing for {provider}"
+                ))
+            })?;
+            let descriptor = self.registry.descriptor(provider).cloned().ok_or_else(|| {
+                RtcBackendApiError::Unavailable(format!(
+                    "RTC provider adapter missing for {provider}"
+                ))
+            })?;
+            let region_default = schema_field_default(&schema.profile_fields, "region");
+            let access_endpoint =
+                schema_field_default(&schema.application_fields, "accessEndpoint");
+            let api_endpoint = schema_field_default(&schema.application_fields, "apiEndpoint");
+            let api_host = schema_field_default(&schema.application_fields, "apiHost");
+            let api_version = schema_field_default(&schema.application_fields, "apiVersion");
+            let application_id_kind =
+                schema_field_default(&schema.application_fields, "providerApplicationIdKind")
+                    .unwrap_or_else(|| "app_id".to_string());
+            let placeholder_application_id =
+                schema_field_default(&schema.application_fields, "providerApplicationId")
+                    .unwrap_or_else(|| format!("builtin-{provider}-app-id"));
+
+            // 1. Account — deterministic natural key (tenant, organization,
+            //    provider, "default"); skip when the scope already has one.
+            let account_code = "default";
+            let account_id =
+                provider_account_id_for(&tenant_id, &organization_id, provider, account_code);
+            let account = match self
+                .get_or_load_provider_account(
+                    tenant_id.as_str(),
+                    Some(organization_id.as_str()),
+                    account_id.as_str(),
+                )
+                .await
+            {
+                Ok(account) => {
+                    report.skipped_accounts += 1;
+                    account
+                }
+                Err(RtcProductError::NotFound(_)) => {
+                    let command = RtcProviderAccountCommand {
+                        provider: provider.clone(),
+                        code: account_code.to_string(),
+                        name: schema.display_name.clone(),
+                        status: Some(RtcProviderAccountStatus::Active),
+                        environment: environment.clone(),
+                        external_tenant_id: None,
+                        cloud_account_id: None,
+                        project_id: None,
+                        resource_group_id: None,
+                    };
+                    let account = self
+                        .upsert_provider_account_impl(
+                            tenant_id.clone(),
+                            Some(organization_id.clone()),
+                            actor_id.clone(),
+                            None,
+                            command,
+                        )
+                        .await?;
+                    report.created_accounts += 1;
+                    account
+                }
+                Err(error) => return Err(backend_error_from_product(error)),
+            };
+
+            // 2. Application — one per account with the vendor placeholder id
+            //    and endpoint defaults from the provider schema.
+            let application_code = "default";
+            let application_id = provider_application_id_for(account.id.as_str(), application_code);
+            if self
+                .get_or_load_provider_application(
+                    tenant_id.as_str(),
+                    Some(organization_id.as_str()),
+                    application_id.as_str(),
+                )
+                .await
+                .is_err()
+            {
+                let command = RtcProviderApplicationCommand {
+                    code: application_code.to_string(),
+                    name: format!("{} App", schema.display_name),
+                    status: Some(RtcProviderApplicationStatus::Active),
+                    environment: environment.clone(),
+                    region: region_default.clone(),
+                    provider_application_id: placeholder_application_id.clone(),
+                    provider_application_id_kind: application_id_kind,
+                    access_endpoint: access_endpoint.clone(),
+                    api_endpoint: api_endpoint.clone(),
+                    api_host: api_host.clone(),
+                    api_version: api_version.clone(),
+                    webhook_callback_url: None,
+                    config_snapshot: serde_json::json!({
+                        "source": "provider-defaults-bootstrap",
+                        "adapterStatus": "implemented",
+                    }),
+                };
+                self.upsert_provider_application_impl(
+                    tenant_id.clone(),
+                    Some(organization_id.clone()),
+                    actor_id.clone(),
+                    Some(account.id.clone()),
+                    None,
+                    command,
+                )
+                .await?;
+                report.created_applications += 1;
+            }
+
+            // 3. Credentials — one placeholder row per schema credential role;
+            //    references only, never secret material.
+            for role_schema in &schema.credential_roles {
+                let role = provider_credential_role_from_schema_key(&role_schema.role)?;
+                let first_field = role_schema.fields.first().cloned();
+                let fingerprint_field = role_schema
+                    .fields
+                    .iter()
+                    .find(|field| field.key == "credentialFingerprint")
+                    .cloned();
+                let Some(credential_ref_field) = first_field else {
+                    continue;
+                };
+                let Some(credential_ref) = credential_ref_field.placeholder.clone() else {
+                    continue;
+                };
+                let credential_id = provider_credential_id_for(
+                    application_id.as_str(),
+                    &role,
+                    credential_ref_field.label.as_str(),
+                );
+                if self
+                    .get_or_load_provider_credential(
+                        tenant_id.as_str(),
+                        Some(organization_id.as_str()),
+                        credential_id.as_str(),
+                    )
+                    .await
+                    .is_ok()
+                {
+                    continue;
+                }
+                let command = RtcProviderCredentialCommand {
+                    credential_role: role,
+                    credential_kind: Some(
+                        if fingerprint_field.is_some() {
+                            "access_key_pair"
+                        } else {
+                            "secret_text"
+                        }
+                        .to_string(),
+                    ),
+                    credential_label: credential_ref_field.label.clone(),
+                    credential_ref,
+                    credential_fingerprint: fingerprint_field
+                        .and_then(|field| field.placeholder.clone()),
+                    secret_version: Some("placeholder".to_string()),
+                    credential_secret: None,
+                    status: Some(RtcProviderCredentialStatus::Pending),
+                    valid_from: None,
+                    expires_at: None,
+                    rotation_due_at: None,
+                };
+                self.upsert_provider_credential_impl(
+                    tenant_id.clone(),
+                    Some(organization_id.clone()),
+                    actor_id.clone(),
+                    Some(application_id.clone()),
+                    None,
+                    command,
+                )
+                .await?;
+                report.created_credentials += 1;
+            }
+
+            // 4. Profile — the selectable runtime profile bound to the
+            //    application, with the signing credential reference from the
+            //    schema's primary credential role.
+            let profile_code = "default";
+            let profile_id = profile_id(&tenant_id, &organization_id, provider, profile_code);
+            let profile_ref = self
+                .get_or_load_provider_profile(
+                    tenant_id.as_str(),
+                    Some(organization_id.as_str()),
+                    profile_id.as_str(),
+                )
+                .await;
+            if profile_ref.is_err() {
+                let signing_role = schema.credential_roles.first().cloned().ok_or_else(|| {
+                    RtcBackendApiError::Unavailable(format!(
+                        "RTC provider schema declares no credential roles for {provider}"
+                    ))
+                })?;
+                let signing_ref = signing_role
+                    .fields
+                    .first()
+                    .and_then(|field| field.placeholder.clone())
+                    .ok_or_else(|| {
+                        RtcBackendApiError::Unavailable(format!(
+                            "RTC provider schema signing role has no credential reference for {provider}"
+                        ))
+                    })?;
+                let webhook_secret_ref = schema
+                    .credential_roles
+                    .iter()
+                    .find(|role| role.role == "webhook_signing")
+                    .and_then(|role| role.fields.first())
+                    .and_then(|field| field.placeholder.clone());
+                let is_default = default_provider_kind.as_deref() == Some(provider.as_str());
+                let command = RtcProviderProfileCommand {
+                    provider: provider.clone(),
+                    code: profile_code.to_string(),
+                    name: schema.display_name.clone(),
+                    status: Some(RtcProviderProfileStatus::Active),
+                    is_default,
+                    priority: if is_default { 0 } else { 100 },
+                    environment: environment.clone(),
+                    region: region_default.clone(),
+                    provider_application_id: Some(application_id.clone()),
+                    provider_app_id: Some(placeholder_application_id.clone()),
+                    endpoint: access_endpoint.clone(),
+                    credential_ref: Some(signing_ref),
+                    webhook_secret_ref,
+                    capabilities: RtcProviderCapabilitySnapshot::from_plugin_descriptor(
+                        &descriptor,
+                    ),
+                    config_snapshot: serde_json::json!({
+                        "source": "provider-defaults-bootstrap",
+                        "credentialTtlSeconds": 3600,
+                    }),
+                };
+                let profile = self
+                    .upsert_provider_profile_impl(
+                        tenant_id.clone(),
+                        Some(organization_id.clone()),
+                        actor_id.clone(),
+                        None,
+                        command,
+                    )
+                    .await?;
+                report.created_profiles += 1;
+
+                // 5. Route — one region route so the fresh profile is
+                //    immediately selectable through region-based selection.
+                if let Some(region) = region_default.clone() {
+                    let command = RtcProviderRouteCommand {
+                        provider_profile_id: profile.id.clone(),
+                        route_type: RTC_PROVIDER_ROUTE_TYPE_REGION.to_string(),
+                        region: Some(region),
+                        priority: if is_default { 0 } else { 100 },
+                        status: Some(RtcProviderRouteStatus::Active),
+                    };
+                    RtcBackendApiService::create_provider_route(
+                        self,
+                        tenant_id.clone(),
+                        Some(organization_id.clone()),
+                        actor_id.clone(),
+                        command,
+                    )
+                    .await?;
+                    report.created_routes += 1;
+                }
+            }
+        }
+
+        Ok(report)
     }
 
     async fn retrieve_provider_account_impl(
@@ -1686,7 +1993,7 @@ impl RtcProductService {
     ) -> Result<RtcProviderApplication, RtcBackendApiError> {
         let code = normalized_required_string("provider application code", request.code.as_str())?;
         let name = normalized_required_string("provider application name", request.name.as_str())?;
-        let environment = normalized_required_string(
+        let environment = normalized_environment(
             "provider application environment",
             request.environment.as_str(),
         )?;
@@ -1739,6 +2046,7 @@ impl RtcProductService {
             .map_err(backend_error_from_product)?
             .clone();
             ensure_active_provider_account(&account).map_err(backend_error_from_product)?;
+            ensure_provider_adapter_available(&self.registry, account.provider.as_str())?;
             validate_provider_application_id_kind(
                 account.provider.as_str(),
                 provider_application_id_kind.as_str(),
@@ -2352,9 +2660,7 @@ impl RtcProductService {
         provider_profile_id: Option<String>,
         request: RtcProviderProfileCommand,
     ) -> Result<RtcProviderProfile, RtcBackendApiError> {
-        self.registry
-            .provider(request.provider.as_str())
-            .map_err(backend_error_from_registry)?;
+        ensure_provider_adapter_available(&self.registry, request.provider.as_str())?;
         if let Some(credential_ref) = request.credential_ref.as_deref() {
             ensure_secret_reference("credential ref", credential_ref)?;
         }
@@ -2376,6 +2682,8 @@ impl RtcProductService {
                 "RTC provider profile environment is required".to_string(),
             ));
         }
+        let profile_environment =
+            normalized_environment("provider profile environment", request.environment.as_str())?;
         let provider_application_id =
             normalized_optional_string(request.provider_application_id.as_deref());
         let now = utc_now_rfc3339_millis();
@@ -2483,7 +2791,7 @@ impl RtcProductService {
                 status: request.status.unwrap_or(RtcProviderProfileStatus::Active),
                 is_default: request.is_default,
                 priority: request.priority,
-                environment: request.environment,
+                environment: profile_environment,
                 region: request.region,
                 provider_application_id,
                 provider_app_id: non_empty_optional(request.provider_app_id.as_deref())
@@ -5275,6 +5583,21 @@ impl RtcBackendApiService for RtcProductService {
         })
     }
 
+    fn create_provider_defaults(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        request: RtcProviderDefaultsCommand,
+    ) -> RtcBackendApiFuture<RtcProviderDefaultsReport> {
+        let service = self.clone();
+        Box::pin(async move {
+            service
+                .ensure_provider_defaults_impl(tenant_id, organization_id, actor_id, request)
+                .await
+        })
+    }
+
     fn retrieve_provider_account(
         &self,
         tenant_id: String,
@@ -6622,6 +6945,56 @@ fn normalized_required_string(field: &str, value: &str) -> Result<String, RtcBac
     Ok(value.to_string())
 }
 
+/// Canonical RTC environment stamps. This is the exact value set the
+/// `rtc_provider_account`/`rtc_provider_application`/`rtc_provider_profile`
+/// `environment` CHECK constraint accepts (DATABASE_SPEC §6.10: initialization
+/// and runtime writes must resolve the same scope).
+const RTC_ENVIRONMENT_VALUES: [&str; 5] = ["development", "test", "staging", "production", "demo"];
+
+fn normalized_environment(field: &str, value: &str) -> Result<String, RtcBackendApiError> {
+    let value = normalized_required_string(field, value)?;
+    let canonical = match value.to_ascii_lowercase().as_str() {
+        "development" | "dev" | "local" => "development",
+        "test" | "testing" => "test",
+        "staging" => "staging",
+        "production" | "prod" => "production",
+        "demo" => "demo",
+        other => {
+            return Err(RtcBackendApiError::BadRequest(format!(
+                "RTC {field} must be one of {:?}, got `{other}`",
+                RTC_ENVIRONMENT_VALUES
+            )));
+        }
+    };
+    Ok(canonical.to_string())
+}
+
+/// Provider configuration writes are only allowed for catalog kinds whose
+/// runtime adapter is registered. Planned catalog entries fail with an
+/// explicit adapter-pending message instead of a generic missing-provider
+/// error, so the admin console can explain why the vendor cannot be enabled.
+fn ensure_provider_adapter_available(
+    registry: &RtcProviderPluginRegistry,
+    provider: &str,
+) -> Result<(), RtcBackendApiError> {
+    if registry.provider(provider).is_ok() {
+        return Ok(());
+    }
+    if sdkwork_communication_rtc_service::platform_default_planned_provider_kinds()
+        .iter()
+        .any(|kind| kind == provider)
+    {
+        return Err(RtcBackendApiError::BadRequest(format!(
+            "RTC provider {provider} is declared in the vendor catalog but its runtime adapter is not implemented yet"
+        )));
+    }
+    Err(backend_error_from_registry(
+        RtcProviderPluginRegistryError::MissingProvider {
+            provider: provider.to_string(),
+        },
+    ))
+}
+
 fn ensure_secret_reference(field: &str, value: &str) -> Result<(), RtcBackendApiError> {
     let value = value.trim().to_ascii_lowercase();
     if value.starts_with("secret://")
@@ -6640,6 +7013,39 @@ fn ensure_secret_reference(field: &str, value: &str) -> Result<(), RtcBackendApi
 
 fn organization_id_string(organization_id: Option<String>) -> String {
     organization_id.unwrap_or_else(|| "0".to_string())
+}
+
+/// String default of a provider schema config field, used by the
+/// provider-defaults bootstrap to derive vendor placeholders.
+fn schema_field_default(
+    fields: &[sdkwork_communication_rtc_service::ConfigFieldSchema],
+    key: &str,
+) -> Option<String> {
+    fields
+        .iter()
+        .find(|field| field.key == key)
+        .and_then(|field| field.default.as_ref())
+        .and_then(|value| value.as_str())
+        .map(str::to_owned)
+}
+
+/// Maps a provider schema `credentialRoles[].role` key to the domain role.
+fn provider_credential_role_from_schema_key(
+    role_key: &str,
+) -> Result<RtcProviderCredentialRole, RtcBackendApiError> {
+    let role = match role_key {
+        "rtc_token_signing" => RtcProviderCredentialRole::RtcTokenSigning,
+        "open_api_signing" => RtcProviderCredentialRole::OpenApiSigning,
+        "usersig_signing" => RtcProviderCredentialRole::UserSigSigning,
+        "cloud_api_signing" => RtcProviderCredentialRole::CloudApiSigning,
+        "webhook_signing" => RtcProviderCredentialRole::WebhookSigning,
+        other => {
+            return Err(RtcBackendApiError::Unavailable(format!(
+                "RTC provider schema declares unknown credential role `{other}`"
+            )));
+        }
+    };
+    Ok(role)
 }
 
 fn scoped_query(
@@ -6683,6 +7089,9 @@ fn scoped_query_from_backend(request: &RtcBackendListRequest) -> RtcScopedListQu
     });
     if let Some(provider) = request.provider.clone() {
         query = query.with_provider(provider);
+    }
+    if let Some(environment) = request.environment.clone() {
+        query = query.with_environment(environment);
     }
     query
 }

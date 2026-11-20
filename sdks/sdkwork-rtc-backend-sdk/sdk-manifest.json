@@ -44,7 +44,7 @@
   "generatorName": "@sdkwork/sdk-generator",
   "generatorEntryPoint": "../sdkwork-sdk-generator/bin/sdkgen.js",
   "standardProfile": "sdkwork-v3",
-  "ownerOnlyOperationCount": 46,
+  "ownerOnlyOperationCount": 47,
   "packageName": "@sdkwork/rtc-backend-sdk",
   "transportPackageName": "sdkwork-rtc-backend-sdk-generated-typescript",
   "typescript": {
