@@ -1,11 +1,7 @@
 use sdkwork_communication_rtc_service::{RtcProviderRoute, RtcProviderRouteStatus};
-use sqlx::{
-    Executor, PgPool, Row, postgres::PgRow, postgres::Postgres,
-};
+use sqlx::{Executor, PgPool, Row, postgres::PgRow, postgres::Postgres};
 
 use crate::{RtcStorageError, RtcStorageResult};
-
-
 
 #[derive(Clone, Debug)]
 pub struct RtcPostgresProviderRouteRepository {
@@ -235,7 +231,6 @@ impl RtcPostgresProviderRouteRepository {
     }
 }
 
-
 fn postgres_upsert_provider_route_sql() -> &'static str {
     r#"
     INSERT INTO rtc_provider_route (
@@ -302,7 +297,6 @@ fn postgres_provider_route_select_columns_sql(where_clause: &str, order_clause: 
     provider_route_select_columns_sql(where_clause, order_clause)
 }
 
-
 fn postgres_row_to_provider_route(row: PgRow) -> RtcStorageResult<RtcProviderRoute> {
     let status: i32 = row.try_get("status")?;
 
@@ -357,7 +351,6 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
         })
 }
 
-
 fn postgres_i64_column_to_string(row: &PgRow, column: &'static str) -> RtcStorageResult<String> {
     let value: i64 = row.try_get(column)?;
     Ok(value.to_string())
@@ -391,4 +384,3 @@ fn provider_route_sort_column(field: &str) -> &'static str {
         _ => "uuid",
     }
 }
-

@@ -6,10 +6,10 @@ use sdkwork_communication_rtc_service::{
     RtcMediaTrackStatus, RtcParticipantRole, RtcParticipantState, RtcQualitySample,
     RtcRecordingArtifactKind, RtcRecordingArtifactStatus, RtcRecordingLifecycleReconcileQuery,
     RtcRoom, RtcRoomStatus, RtcStaleMediaSessionReconcileCandidates,
-    RtcStaleMediaSessionReconcileQuery, RtcTenantOrganizationScope, rtc_provider_payload_hash};
+    RtcStaleMediaSessionReconcileQuery, RtcTenantOrganizationScope, rtc_provider_payload_hash,
+};
 use serde::de::DeserializeOwned;
-use sqlx::{
-    Executor, PgPool, Postgres, Row, postgres::PgRow};
+use sqlx::{Executor, PgPool, Postgres, Row, postgres::PgRow};
 use std::collections::HashMap;
 
 use crate::{RtcStorageError, RtcStorageResult};
@@ -148,7 +148,8 @@ impl RtcPostgresMediaSessionRepository {
             .await?;
         match row {
             Some(row) => Ok(Some(row.try_get("version")?)),
-            None => Ok(None)}
+            None => Ok(None),
+        }
     }
 
     pub async fn list_media_session_versions_for_scope(
@@ -428,7 +429,8 @@ impl RtcPostgresMediaSessionRepository {
             tracks,
             artifacts,
             quality_samples,
-            recorded_at: recorded_at.to_string()}))
+            recorded_at: recorded_at.to_string(),
+        }))
     }
 
     async fn list_media_participants(
@@ -676,7 +678,8 @@ impl RtcPostgresMediaSessionRepository {
             .map(|row| {
                 Ok(RtcTenantOrganizationScope {
                     tenant_id: postgres_i64_column_to_string(&row, "tenant_id")?,
-                    organization_id: postgres_i64_column_to_string(&row, "organization_id")?})
+                    organization_id: postgres_i64_column_to_string(&row, "organization_id")?,
+                })
             })
             .collect()
     }
@@ -778,7 +781,8 @@ impl RtcPostgresMediaSessionRepository {
         Ok(RtcStaleMediaSessionReconcileCandidates {
             stale_candidates,
             provider_drift_candidates,
-            failed_compensation_candidates})
+            failed_compensation_candidates,
+        })
     }
 
     pub async fn list_recording_artifact_lifecycle_candidates(
@@ -923,9 +927,13 @@ impl RtcPostgresMediaSessionRepository {
         sort_descending: bool,
     ) -> RtcStorageResult<Vec<RtcRoom>> {
         let status_filter = room_status_filter_i32(status)?;
-        let owner_filter = match owner_user_id.map(str::trim).filter(|value| !value.is_empty()) {
+        let owner_filter = match owner_user_id
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             None => None,
-            Some(value) => Some(parse_i64_field("owner_user_id", value)?)};
+            Some(value) => Some(parse_i64_field("owner_user_id", value)?),
+        };
         let created_after_filter = parse_created_after_filter(created_after)?;
 
         let mut where_parts = vec![
@@ -1258,7 +1266,6 @@ impl RtcPostgresMediaSessionRepository {
     }
 }
 
-
 fn postgres_upsert_room_sql() -> &'static str {
     r#"
     INSERT INTO rtc_room (
@@ -1276,7 +1283,6 @@ fn postgres_upsert_room_sql() -> &'static str {
         version = rtc_room.version + 1
     "#
 }
-
 
 fn postgres_upsert_media_session_sql() -> &'static str {
     r#"
@@ -1330,7 +1336,6 @@ fn postgres_upsert_media_session_sql() -> &'static str {
     "#
 }
 
-
 fn postgres_upsert_media_participant_sql() -> &'static str {
     r#"
     INSERT INTO rtc_media_participant (
@@ -1368,7 +1373,6 @@ fn postgres_upsert_media_participant_sql() -> &'static str {
     "#
 }
 
-
 fn postgres_upsert_media_track_sql() -> &'static str {
     r#"
     INSERT INTO rtc_media_track (
@@ -1404,7 +1408,6 @@ fn postgres_upsert_media_track_sql() -> &'static str {
         version = rtc_media_track.version + 1
     "#
 }
-
 
 fn postgres_upsert_media_artifact_sql() -> &'static str {
     r#"
@@ -1453,7 +1456,6 @@ fn postgres_upsert_media_artifact_sql() -> &'static str {
     "#
 }
 
-
 fn postgres_upsert_quality_sample_sql() -> &'static str {
     r#"
     INSERT INTO rtc_quality_sample (
@@ -1474,7 +1476,6 @@ fn postgres_upsert_quality_sample_sql() -> &'static str {
         sampled_at = excluded.sampled_at
     "#
 }
-
 
 fn postgres_media_session_select_sql(where_clause: &str, order_clause: &str) -> String {
     format!(
@@ -1509,7 +1510,6 @@ fn postgres_media_session_select_sql(where_clause: &str, order_clause: &str) -> 
     )
 }
 
-
 fn postgres_media_participant_select_sql(where_clause: &str, order_clause: &str) -> String {
     format!(
         r#"
@@ -1536,7 +1536,6 @@ fn postgres_media_participant_select_sql(where_clause: &str, order_clause: &str)
     )
 }
 
-
 fn postgres_media_track_select_sql(where_clause: &str, order_clause: &str) -> String {
     format!(
         r#"
@@ -1559,7 +1558,6 @@ fn postgres_media_track_select_sql(where_clause: &str, order_clause: &str) -> St
         "#
     )
 }
-
 
 fn postgres_media_artifact_select_sql(where_clause: &str, order_clause: &str) -> String {
     format!(
@@ -1593,7 +1591,6 @@ fn postgres_media_artifact_select_sql(where_clause: &str, order_clause: &str) ->
     )
 }
 
-
 fn postgres_quality_sample_select_sql(where_clause: &str, order_clause: &str) -> String {
     format!(
         r#"
@@ -1613,7 +1610,10 @@ fn postgres_quality_sample_select_sql(where_clause: &str, order_clause: &str) ->
     )
 }
 
-fn ensure_media_session_updated(rows_affected: u64, media_session_id: &str) -> RtcStorageResult<()> {
+fn ensure_media_session_updated(
+    rows_affected: u64,
+    media_session_id: &str,
+) -> RtcStorageResult<()> {
     if rows_affected == 0 {
         return Err(RtcStorageError::Conflict(format!(
             "RTC media session version conflict: {media_session_id}"
@@ -1621,7 +1621,6 @@ fn ensure_media_session_updated(rows_affected: u64, media_session_id: &str) -> R
     }
     Ok(())
 }
-
 
 fn postgres_row_to_media_session(
     row: PgRow,
@@ -1658,9 +1657,9 @@ fn postgres_row_to_media_session(
         completion_recorded_at: row.try_get("completion_recorded_at")?,
         last_provider_webhook_event_id: row.try_get("last_provider_webhook_event_id")?,
         last_provider_query_job_id: row.try_get("last_provider_query_job_id")?,
-        participants})
+        participants,
+    })
 }
-
 
 fn postgres_row_to_media_participant(row: PgRow) -> RtcStorageResult<RtcMediaParticipant> {
     let role: i32 = row.try_get("role")?;
@@ -1681,9 +1680,9 @@ fn postgres_row_to_media_participant(row: PgRow) -> RtcStorageResult<RtcMediaPar
         left_at: row.try_get("left_at")?,
         duration_ms: option_i64_to_u64(row.try_get("duration_ms")?),
         leave_reason: row.try_get("leave_reason")?,
-        last_seen_at: row.try_get("last_seen_at")?})
+        last_seen_at: row.try_get("last_seen_at")?,
+    })
 }
-
 
 fn postgres_row_to_media_track(row: PgRow) -> RtcStorageResult<RtcMediaTrack> {
     Ok(RtcMediaTrack {
@@ -1698,9 +1697,9 @@ fn postgres_row_to_media_track(row: PgRow) -> RtcStorageResult<RtcMediaTrack> {
         ended_at: row.try_get("ended_at")?,
         duration_ms: option_i64_to_u64(row.try_get("duration_ms")?),
         muted_duration_ms: option_i64_to_u64(row.try_get("muted_duration_ms")?),
-        end_reason: row.try_get("end_reason")?})
+        end_reason: row.try_get("end_reason")?,
+    })
 }
-
 
 fn postgres_row_to_media_artifact(row: PgRow) -> RtcStorageResult<RtcMediaArtifact> {
     let resource: sqlx::types::Json<RtcMediaResource> = row.try_get("media_resource_snapshot")?;
@@ -1720,7 +1719,8 @@ fn postgres_row_to_media_artifact(row: PgRow) -> RtcStorageResult<RtcMediaArtifa
             space_id: row.try_get("drive_space_id")?,
             space_type: str_to_drive_space_type(row.try_get("drive_space_type")?)?,
             node_id: row.try_get("drive_node_id")?,
-            node_version: None},
+            node_version: None,
+        },
         resource: resource.0,
         resource_hash: row.try_get("resource_hash")?,
         started_at: row.try_get("started_at")?,
@@ -1728,9 +1728,9 @@ fn postgres_row_to_media_artifact(row: PgRow) -> RtcStorageResult<RtcMediaArtifa
         duration_ms: option_i64_to_u64(row.try_get("duration_ms")?),
         failure_reason: row.try_get("failure_reason")?,
         source_provider_webhook_event_id: row.try_get("source_provider_webhook_event_id")?,
-        source_provider_query_job_id: row.try_get("source_provider_query_job_id")?})
+        source_provider_query_job_id: row.try_get("source_provider_query_job_id")?,
+    })
 }
-
 
 fn postgres_row_to_quality_sample(row: PgRow) -> RtcStorageResult<RtcQualitySample> {
     Ok(RtcQualitySample {
@@ -1741,7 +1741,8 @@ fn postgres_row_to_quality_sample(row: PgRow) -> RtcStorageResult<RtcQualitySamp
         packet_loss_rate: row.try_get("packet_loss_rate")?,
         jitter_ms: optional_i32_column_to_u32(&row, "jitter_ms")?,
         bitrate_kbps: optional_i32_column_to_u32(&row, "bitrate_kbps")?,
-        sampled_at: row.try_get("sampled_at")?})
+        sampled_at: row.try_get("sampled_at")?,
+    })
 }
 
 fn serialize_json<T>(value: &T) -> RtcStorageResult<String>
@@ -1770,12 +1771,14 @@ fn validate_rtc_drive_reference(drive: &RtcDriveReference) -> RtcStorageResult<(
     if drive.space_type != RtcDriveSpaceType::Rtc {
         return Err(RtcStorageError::InvalidEnumValue {
             field: "drive_space_type",
-            value: drive.space_type.as_str().to_string()});
+            value: drive.space_type.as_str().to_string(),
+        });
     }
     if !drive.is_canonical() {
         return Err(RtcStorageError::InvalidEnumValue {
             field: "drive_uri",
-            value: drive.drive_uri.clone()});
+            value: drive.drive_uri.clone(),
+        });
     }
     Ok(())
 }
@@ -1786,7 +1789,8 @@ fn validate_rtc_media_artifact_drive_snapshot(artifact: &RtcMediaArtifact) -> Rt
     if artifact.resource.source != RtcMediaSource::Drive {
         return Err(RtcStorageError::InvalidEnumValue {
             field: "media_resource_source",
-            value: format!("{:?}", artifact.resource.source)});
+            value: format!("{:?}", artifact.resource.source),
+        });
     }
 
     match artifact.resource.id.as_deref() {
@@ -1794,12 +1798,14 @@ fn validate_rtc_media_artifact_drive_snapshot(artifact: &RtcMediaArtifact) -> Rt
         Some(resource_id) => {
             return Err(RtcStorageError::InvalidEnumValue {
                 field: "media_resource_id",
-                value: resource_id.to_string()});
+                value: resource_id.to_string(),
+            });
         }
         None => {
             return Err(RtcStorageError::InvalidEnumValue {
                 field: "media_resource_id",
-                value: "<missing>".to_string()});
+                value: "<missing>".to_string(),
+            });
         }
     }
 
@@ -1808,24 +1814,28 @@ fn validate_rtc_media_artifact_drive_snapshot(artifact: &RtcMediaArtifact) -> Rt
         Some(resource_uri) => {
             return Err(RtcStorageError::InvalidEnumValue {
                 field: "media_resource_uri",
-                value: resource_uri.to_string()});
+                value: resource_uri.to_string(),
+            });
         }
         None => {
             return Err(RtcStorageError::InvalidEnumValue {
                 field: "media_resource_uri",
-                value: "<missing>".to_string()});
+                value: "<missing>".to_string(),
+            });
         }
     }
 
     let Some(metadata) = artifact.resource.metadata.as_ref() else {
         return Err(RtcStorageError::InvalidEnumValue {
             field: "media_resource_metadata.drive",
-            value: "<missing>".to_string()});
+            value: "<missing>".to_string(),
+        });
     };
     let Some(drive_metadata) = metadata.get("drive").and_then(|value| value.as_object()) else {
         return Err(RtcStorageError::InvalidEnumValue {
             field: "media_resource_metadata.drive",
-            value: "<missing>".to_string()});
+            value: "<missing>".to_string(),
+        });
     };
 
     validate_drive_metadata_string(
@@ -1864,10 +1874,13 @@ fn validate_drive_metadata_string(
         Some(actual) if actual == expected => Ok(()),
         Some(actual) => Err(RtcStorageError::InvalidEnumValue {
             field,
-            value: actual.to_string()}),
+            value: actual.to_string(),
+        }),
         None => Err(RtcStorageError::InvalidEnumValue {
             field,
-            value: "<missing>".to_string()})}
+            value: "<missing>".to_string(),
+        }),
+    }
 }
 
 fn str_to_drive_space_type(value: String) -> RtcStorageResult<RtcDriveSpaceType> {
@@ -1875,7 +1888,9 @@ fn str_to_drive_space_type(value: String) -> RtcStorageResult<RtcDriveSpaceType>
         "rtc" => Ok(RtcDriveSpaceType::Rtc),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "drive_space_type",
-            value})}
+            value,
+        }),
+    }
 }
 
 fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
@@ -1883,7 +1898,8 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
         .parse::<i64>()
         .map_err(|_| RtcStorageError::InvalidEnumValue {
             field,
-            value: value.to_string()})
+            value: value.to_string(),
+        })
 }
 
 fn parse_optional_f64_field(
@@ -1896,7 +1912,8 @@ fn parse_optional_f64_field(
                 .parse::<f64>()
                 .map_err(|_| RtcStorageError::InvalidEnumValue {
                     field,
-                    value: inner.to_string()})
+                    value: inner.to_string(),
+                })
         })
         .transpose()
 }
@@ -1921,18 +1938,15 @@ fn option_i64_to_u64(value: Option<i64>) -> Option<u64> {
     value.and_then(|inner| u64::try_from(inner).ok())
 }
 
-
 fn postgres_i64_column_to_string(row: &PgRow, column: &'static str) -> RtcStorageResult<String> {
     let value: i64 = row.try_get(column)?;
     Ok(value.to_string())
 }
 
-
 fn i32_column_to_u32(row: &PgRow, column: &'static str) -> RtcStorageResult<u32> {
     let value: i32 = row.try_get(column)?;
     Ok(u32::try_from(value).unwrap_or(u32::MAX))
 }
-
 
 fn optional_i32_column_to_u32(row: &PgRow, column: &'static str) -> RtcStorageResult<Option<u32>> {
     let value: Option<i32> = row.try_get(column)?;
@@ -1943,7 +1957,8 @@ fn room_status_to_i32(value: &RtcRoomStatus) -> i32 {
     match value {
         RtcRoomStatus::Active => 1,
         RtcRoomStatus::Archived => 2,
-        RtcRoomStatus::Disabled => 3}
+        RtcRoomStatus::Disabled => 3,
+    }
 }
 
 fn room_status_filter_i32(status: Option<&str>) -> RtcStorageResult<Option<i32>> {
@@ -1954,7 +1969,9 @@ fn room_status_filter_i32(status: Option<&str>) -> RtcStorageResult<Option<i32>>
         Some("disabled") => Ok(Some(3)),
         Some(other) => Err(RtcStorageError::InvalidEnumValue {
             field: "status",
-            value: other.to_string()})}
+            value: other.to_string(),
+        }),
+    }
 }
 
 fn parse_created_after_filter(value: Option<&str>) -> RtcStorageResult<Option<String>> {
@@ -1964,7 +1981,8 @@ fn parse_created_after_filter(value: Option<&str>) -> RtcStorageResult<Option<St
             sdkwork_communication_rtc_service::validate_rfc3339_datetime(raw).map_err(|error| {
                 RtcStorageError::InvalidEnumValue {
                     field: "created_after",
-                    value: error}
+                    value: error,
+                }
             })?;
             Ok(Some(raw.to_string()))
         }
@@ -1978,7 +1996,9 @@ fn i32_to_room_status(value: i32) -> RtcStorageResult<RtcRoomStatus> {
         3 => Ok(RtcRoomStatus::Disabled),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn room_sort_column(field: &str) -> &'static str {
@@ -1986,7 +2006,8 @@ fn room_sort_column(field: &str) -> &'static str {
         "title" => "title",
         "status" => "status",
         "ownerUserId" | "owner_user_id" => "owner_user_id",
-        _ => "uuid"}
+        _ => "uuid",
+    }
 }
 
 fn media_session_sort_column(field: &str) -> &'static str {
@@ -1995,7 +2016,8 @@ fn media_session_sort_column(field: &str) -> &'static str {
         "provider" | "providerProfileId" | "provider_profile_id" => "provider_profile_id",
         "status" => "status",
         "startedAt" | "started_at" => "started_at",
-        _ => "uuid"}
+        _ => "uuid",
+    }
 }
 
 fn media_artifact_sort_column(field: &str) -> &'static str {
@@ -2003,7 +2025,8 @@ fn media_artifact_sort_column(field: &str) -> &'static str {
         "kind" | "artifactKind" | "artifact_kind" => "artifact_kind",
         "status" | "artifactStatus" | "artifact_status" => "artifact_status",
         "sessionId" | "session_id" => "session_id",
-        _ => "uuid"}
+        _ => "uuid",
+    }
 }
 
 fn quality_sample_sort_column(field: &str) -> &'static str {
@@ -2011,7 +2034,8 @@ fn quality_sample_sort_column(field: &str) -> &'static str {
         "sessionId" | "session_id" => "session_id",
         "participantId" | "participant_id" => "participant_id",
         "sampledAt" | "sampled_at" => "sampled_at",
-        _ => "uuid"}
+        _ => "uuid",
+    }
 }
 
 fn postgres_room_select_sql(where_clause: &str, suffix: &str) -> String {
@@ -2023,7 +2047,6 @@ fn postgres_room_select_sql(where_clause: &str, suffix: &str) -> String {
     )
 }
 
-
 fn postgres_row_to_room(row: PgRow) -> RtcStorageResult<RtcRoom> {
     Ok(RtcRoom {
         id: row.try_get("uuid")?,
@@ -2031,14 +2054,16 @@ fn postgres_row_to_room(row: PgRow) -> RtcStorageResult<RtcRoom> {
         organization_id: postgres_i64_column_to_string(&row, "organization_id")?,
         owner_user_id: postgres_i64_column_to_string(&row, "owner_user_id")?,
         title: row.try_get("title")?,
-        status: i32_to_room_status(row.try_get::<i32, _>("status")?)?})
+        status: i32_to_room_status(row.try_get::<i32, _>("status")?)?,
+    })
 }
 
 fn media_mode_to_i32(value: &RtcMediaSessionMode) -> i32 {
     match value {
         RtcMediaSessionMode::Audio => 1,
         RtcMediaSessionMode::Video => 2,
-        RtcMediaSessionMode::Live => 3}
+        RtcMediaSessionMode::Live => 3,
+    }
 }
 
 fn i32_to_media_mode(value: i32) -> RtcStorageResult<RtcMediaSessionMode> {
@@ -2048,7 +2073,9 @@ fn i32_to_media_mode(value: i32) -> RtcStorageResult<RtcMediaSessionMode> {
         3 => Ok(RtcMediaSessionMode::Live),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "media_mode",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn media_session_status_to_i32(value: &RtcMediaSessionStatus) -> i32 {
@@ -2057,7 +2084,8 @@ fn media_session_status_to_i32(value: &RtcMediaSessionStatus) -> i32 {
         RtcMediaSessionStatus::Active => 2,
         RtcMediaSessionStatus::Closing => 3,
         RtcMediaSessionStatus::Ended => 4,
-        RtcMediaSessionStatus::Failed => 5}
+        RtcMediaSessionStatus::Failed => 5,
+    }
 }
 
 fn i32_to_media_session_status(value: i32) -> RtcStorageResult<RtcMediaSessionStatus> {
@@ -2069,14 +2097,17 @@ fn i32_to_media_session_status(value: i32) -> RtcStorageResult<RtcMediaSessionSt
         5 => Ok(RtcMediaSessionStatus::Failed),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn participant_role_to_i32(value: &RtcParticipantRole) -> i32 {
     match value {
         RtcParticipantRole::Host => 1,
         RtcParticipantRole::Guest => 2,
-        RtcParticipantRole::Listener => 3}
+        RtcParticipantRole::Listener => 3,
+    }
 }
 
 fn i32_to_participant_role(value: i32) -> RtcStorageResult<RtcParticipantRole> {
@@ -2086,7 +2117,9 @@ fn i32_to_participant_role(value: i32) -> RtcStorageResult<RtcParticipantRole> {
         3 => Ok(RtcParticipantRole::Listener),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "role",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn participant_state_to_i32(value: &RtcParticipantState) -> i32 {
@@ -2095,7 +2128,8 @@ fn participant_state_to_i32(value: &RtcParticipantState) -> i32 {
         RtcParticipantState::Joined => 2,
         RtcParticipantState::Left => 3,
         RtcParticipantState::Kicked => 4,
-        RtcParticipantState::Timeout => 5}
+        RtcParticipantState::Timeout => 5,
+    }
 }
 
 fn i32_to_participant_state(value: i32) -> RtcStorageResult<RtcParticipantState> {
@@ -2107,7 +2141,9 @@ fn i32_to_participant_state(value: i32) -> RtcStorageResult<RtcParticipantState>
         5 => Ok(RtcParticipantState::Timeout),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "state",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn track_kind_to_i32(value: &RtcMediaTrackKind) -> i32 {
@@ -2115,7 +2151,8 @@ fn track_kind_to_i32(value: &RtcMediaTrackKind) -> i32 {
         RtcMediaTrackKind::Audio => 1,
         RtcMediaTrackKind::Video => 2,
         RtcMediaTrackKind::ScreenShare => 3,
-        RtcMediaTrackKind::Data => 4}
+        RtcMediaTrackKind::Data => 4,
+    }
 }
 
 fn i32_to_track_kind(value: i32) -> RtcStorageResult<RtcMediaTrackKind> {
@@ -2126,7 +2163,9 @@ fn i32_to_track_kind(value: i32) -> RtcStorageResult<RtcMediaTrackKind> {
         4 => Ok(RtcMediaTrackKind::Data),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "track_kind",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn track_source_to_i32(value: &RtcMediaTrackSource) -> i32 {
@@ -2135,7 +2174,8 @@ fn track_source_to_i32(value: &RtcMediaTrackSource) -> i32 {
         RtcMediaTrackSource::Camera => 2,
         RtcMediaTrackSource::Screen => 3,
         RtcMediaTrackSource::System => 4,
-        RtcMediaTrackSource::Custom => 5}
+        RtcMediaTrackSource::Custom => 5,
+    }
 }
 
 fn i32_to_track_source(value: i32) -> RtcStorageResult<RtcMediaTrackSource> {
@@ -2147,7 +2187,9 @@ fn i32_to_track_source(value: i32) -> RtcStorageResult<RtcMediaTrackSource> {
         5 => Ok(RtcMediaTrackSource::Custom),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "track_source",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn track_status_to_i32(value: &RtcMediaTrackStatus) -> i32 {
@@ -2155,7 +2197,8 @@ fn track_status_to_i32(value: &RtcMediaTrackStatus) -> i32 {
         RtcMediaTrackStatus::Publishing => 1,
         RtcMediaTrackStatus::Muted => 2,
         RtcMediaTrackStatus::Stopped => 3,
-        RtcMediaTrackStatus::Failed => 4}
+        RtcMediaTrackStatus::Failed => 4,
+    }
 }
 
 fn i32_to_track_status(value: i32) -> RtcStorageResult<RtcMediaTrackStatus> {
@@ -2166,7 +2209,9 @@ fn i32_to_track_status(value: i32) -> RtcStorageResult<RtcMediaTrackStatus> {
         4 => Ok(RtcMediaTrackStatus::Failed),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "track_status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn recording_artifact_kind_to_i32(value: &RtcRecordingArtifactKind) -> i32 {
@@ -2175,7 +2220,8 @@ fn recording_artifact_kind_to_i32(value: &RtcRecordingArtifactKind) -> i32 {
         RtcRecordingArtifactKind::Transcript => 2,
         RtcRecordingArtifactKind::ScreenShare => 3,
         RtcRecordingArtifactKind::Snapshot => 4,
-        RtcRecordingArtifactKind::Other => 5}
+        RtcRecordingArtifactKind::Other => 5,
+    }
 }
 
 fn i32_to_recording_artifact_kind(value: i32) -> RtcStorageResult<RtcRecordingArtifactKind> {
@@ -2187,7 +2233,9 @@ fn i32_to_recording_artifact_kind(value: i32) -> RtcStorageResult<RtcRecordingAr
         5 => Ok(RtcRecordingArtifactKind::Other),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "artifact_kind",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn recording_artifact_status_to_i32(value: &RtcRecordingArtifactStatus) -> i32 {
@@ -2196,7 +2244,8 @@ fn recording_artifact_status_to_i32(value: &RtcRecordingArtifactStatus) -> i32 {
         RtcRecordingArtifactStatus::Processing => 2,
         RtcRecordingArtifactStatus::Ready => 3,
         RtcRecordingArtifactStatus::Failed => 4,
-        RtcRecordingArtifactStatus::Deleted => 5}
+        RtcRecordingArtifactStatus::Deleted => 5,
+    }
 }
 
 fn i32_to_recording_artifact_status(value: i32) -> RtcStorageResult<RtcRecordingArtifactStatus> {
@@ -2208,7 +2257,9 @@ fn i32_to_recording_artifact_status(value: i32) -> RtcStorageResult<RtcRecording
         5 => Ok(RtcRecordingArtifactStatus::Deleted),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "artifact_status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn end_source_to_str(value: &RtcMediaSessionEndSource) -> &'static str {
@@ -2219,7 +2270,8 @@ fn end_source_to_str(value: &RtcMediaSessionEndSource) -> &'static str {
         RtcMediaSessionEndSource::ProviderStateSync => "provider_state_sync",
         RtcMediaSessionEndSource::Timeout => "timeout",
         RtcMediaSessionEndSource::SystemReconcile => "system_reconcile",
-        RtcMediaSessionEndSource::Unknown => "unknown"}
+        RtcMediaSessionEndSource::Unknown => "unknown",
+    }
 }
 
 fn str_to_end_source(value: &str) -> RtcStorageResult<RtcMediaSessionEndSource> {
@@ -2233,6 +2285,7 @@ fn str_to_end_source(value: &str) -> RtcStorageResult<RtcMediaSessionEndSource> 
         "unknown" => Ok(RtcMediaSessionEndSource::Unknown),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "end_source",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
-

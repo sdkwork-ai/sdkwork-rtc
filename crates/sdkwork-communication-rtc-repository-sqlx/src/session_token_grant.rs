@@ -1,11 +1,7 @@
-use sdkwork_communication_rtc_service::{
-    RtcSessionTokenGrant, RtcSessionTokenGrantStatus,
-};
+use sdkwork_communication_rtc_service::{RtcSessionTokenGrant, RtcSessionTokenGrantStatus};
 use sqlx::{Executor, PgPool, Postgres, Row, postgres::PgRow};
 
 use crate::{RtcStorageError, RtcStorageResult};
-
-
 
 #[derive(Clone, Debug)]
 pub struct RtcPostgresSessionTokenGrantRepository {
@@ -74,8 +70,15 @@ impl RtcPostgresSessionTokenGrantRepository {
         participant_id: Option<&str>,
         revoked_at: &str,
     ) -> RtcStorageResult<()> {
-        self.revoke_active_grants_with(&self.pool, tenant_id, organization_id, session_id, participant_id, revoked_at)
-            .await
+        self.revoke_active_grants_with(
+            &self.pool,
+            tenant_id,
+            organization_id,
+            session_id,
+            participant_id,
+            revoked_at,
+        )
+        .await
     }
 
     pub async fn revoke_active_grants_with<'e, E>(
@@ -178,7 +181,6 @@ impl RtcPostgresSessionTokenGrantRepository {
     }
 }
 
-
 fn postgres_row_to_session_token_grant(row: PgRow) -> RtcStorageResult<RtcSessionTokenGrant> {
     let status: i32 = row.try_get("status")?;
     Ok(RtcSessionTokenGrant {
@@ -193,14 +195,14 @@ fn postgres_row_to_session_token_grant(row: PgRow) -> RtcStorageResult<RtcSessio
         expire_at: row.try_get("expire_at")?,
         revoked_at: row.try_get("revoked_at")?,
         created_at: row.try_get("created_at")?,
-        status: RtcSessionTokenGrantStatus::from_i32(status)
-            .ok_or_else(|| RtcStorageError::InvalidEnumValue {
+        status: RtcSessionTokenGrantStatus::from_i32(status).ok_or_else(|| {
+            RtcStorageError::InvalidEnumValue {
                 field: "status",
                 value: status.to_string(),
-            })?,
+            }
+        })?,
     })
 }
-
 
 fn postgres_upsert_session_token_grant_sql() -> &'static str {
     r#"
@@ -239,4 +241,3 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
             value: value.to_string(),
         })
 }
-

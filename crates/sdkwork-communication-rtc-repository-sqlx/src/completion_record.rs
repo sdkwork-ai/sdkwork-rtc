@@ -4,7 +4,8 @@ use sdkwork_communication_rtc_service::{
     RtcMediaSessionCompletionArtifactSummary, RtcMediaSessionCompletionParticipantSummary,
     RtcMediaSessionCompletionQualitySummary, RtcMediaSessionCompletionRecord,
     RtcMediaSessionCompletionRecordingSummary, RtcMediaSessionCompletionTrackSummary,
-    RtcMediaSessionEndSource, RtcMediaSessionMode, RtcMediaSessionStatus};
+    RtcMediaSessionEndSource, RtcMediaSessionMode, RtcMediaSessionStatus,
+};
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use sqlx::{PgPool, Postgres, Row, postgres::PgRow};
@@ -23,7 +24,8 @@ pub enum RtcStorageError {
     MissingProviderWebhookEvent { webhook_event_id: String },
     MissingProviderQueryJob { provider_query_job_id: String },
     MissingProviderQuerySnapshot { provider_query_snapshot_id: String },
-    Conflict(String)}
+    Conflict(String),
+}
 
 impl fmt::Display for RtcStorageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -43,28 +45,32 @@ impl fmt::Display for RtcStorageError {
                 )
             }
             Self::MissingProviderAccount {
-                provider_account_id} => {
+                provider_account_id,
+            } => {
                 write!(
                     formatter,
                     "rtc provider account row is missing: {provider_account_id}"
                 )
             }
             Self::MissingProviderApplication {
-                provider_application_id} => {
+                provider_application_id,
+            } => {
                 write!(
                     formatter,
                     "rtc provider application row is missing: {provider_application_id}"
                 )
             }
             Self::MissingProviderCredential {
-                provider_credential_id} => {
+                provider_credential_id,
+            } => {
                 write!(
                     formatter,
                     "rtc provider credential row is missing: {provider_credential_id}"
                 )
             }
             Self::MissingProviderProfile {
-                provider_profile_id} => {
+                provider_profile_id,
+            } => {
                 write!(
                     formatter,
                     "rtc provider profile row is missing: {provider_profile_id}"
@@ -83,20 +89,23 @@ impl fmt::Display for RtcStorageError {
                 )
             }
             Self::MissingProviderQueryJob {
-                provider_query_job_id} => {
+                provider_query_job_id,
+            } => {
                 write!(
                     formatter,
                     "rtc provider query job row is missing: {provider_query_job_id}"
                 )
             }
             Self::MissingProviderQuerySnapshot {
-                provider_query_snapshot_id} => {
+                provider_query_snapshot_id,
+            } => {
                 write!(
                     formatter,
                     "rtc provider query snapshot row is missing: {provider_query_snapshot_id}"
                 )
             }
-            Self::Conflict(message) => write!(formatter, "rtc storage conflict: {message}")}
+            Self::Conflict(message) => write!(formatter, "rtc storage conflict: {message}"),
+        }
     }
 }
 
@@ -453,7 +462,6 @@ impl RtcPostgresCompletionRecordRepository {
     }
 }
 
-
 fn postgres_row_to_completion_record(
     row: PgRow,
 ) -> RtcStorageResult<RtcMediaSessionCompletionRecord> {
@@ -501,7 +509,8 @@ fn postgres_row_to_completion_record(
         source_provider_query_job_id: row.try_get("provider_query_job_id")?,
         completion_snapshot: completion_snapshot.0,
         completion_snapshot_hash: row.try_get("completion_snapshot_hash")?,
-        recorded_at: row.try_get("recorded_at")?})
+        recorded_at: row.try_get("recorded_at")?,
+    })
 }
 
 fn serialize_json<T>(value: &T) -> RtcStorageResult<String>
@@ -524,7 +533,8 @@ fn ensure_session_summary_updated(
 ) -> RtcStorageResult<()> {
     if rows_affected == 0 {
         return Err(RtcStorageError::MissingMediaSessionSummary {
-            media_session_id: media_session_id.to_string()});
+            media_session_id: media_session_id.to_string(),
+        });
     }
 
     Ok(())
@@ -535,7 +545,8 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
         .parse::<i64>()
         .map_err(|_| RtcStorageError::InvalidEnumValue {
             field,
-            value: value.to_string()})
+            value: value.to_string(),
+        })
 }
 
 fn u32_to_i32(value: u32) -> i32 {
@@ -554,12 +565,10 @@ fn option_i64_to_u64(value: Option<i64>) -> Option<u64> {
     value.and_then(|inner| u64::try_from(inner).ok())
 }
 
-
 fn postgres_i64_column_to_string(row: &PgRow, column: &'static str) -> RtcStorageResult<String> {
     let value: i64 = row.try_get(column)?;
     Ok(value.to_string())
 }
-
 
 fn i32_column_to_u32(row: &PgRow, column: &'static str) -> RtcStorageResult<u32> {
     let value: i32 = row.try_get(column)?;
@@ -570,7 +579,8 @@ fn media_mode_to_i32(value: &RtcMediaSessionMode) -> i32 {
     match value {
         RtcMediaSessionMode::Audio => 1,
         RtcMediaSessionMode::Video => 2,
-        RtcMediaSessionMode::Live => 3}
+        RtcMediaSessionMode::Live => 3,
+    }
 }
 
 fn i32_to_media_mode(value: i32) -> RtcStorageResult<RtcMediaSessionMode> {
@@ -580,7 +590,9 @@ fn i32_to_media_mode(value: i32) -> RtcStorageResult<RtcMediaSessionMode> {
         3 => Ok(RtcMediaSessionMode::Live),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "media_mode",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn media_session_status_to_i32(value: &RtcMediaSessionStatus) -> i32 {
@@ -589,7 +601,8 @@ fn media_session_status_to_i32(value: &RtcMediaSessionStatus) -> i32 {
         RtcMediaSessionStatus::Active => 2,
         RtcMediaSessionStatus::Closing => 3,
         RtcMediaSessionStatus::Ended => 4,
-        RtcMediaSessionStatus::Failed => 5}
+        RtcMediaSessionStatus::Failed => 5,
+    }
 }
 
 fn i32_to_media_session_status(value: i32) -> RtcStorageResult<RtcMediaSessionStatus> {
@@ -601,7 +614,9 @@ fn i32_to_media_session_status(value: i32) -> RtcStorageResult<RtcMediaSessionSt
         5 => Ok(RtcMediaSessionStatus::Failed),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "session_status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn end_source_to_str(value: &RtcMediaSessionEndSource) -> &'static str {
@@ -612,7 +627,8 @@ fn end_source_to_str(value: &RtcMediaSessionEndSource) -> &'static str {
         RtcMediaSessionEndSource::ProviderStateSync => "provider_state_sync",
         RtcMediaSessionEndSource::Timeout => "timeout",
         RtcMediaSessionEndSource::SystemReconcile => "system_reconcile",
-        RtcMediaSessionEndSource::Unknown => "unknown"}
+        RtcMediaSessionEndSource::Unknown => "unknown",
+    }
 }
 
 fn str_to_end_source(value: &str) -> RtcStorageResult<RtcMediaSessionEndSource> {
@@ -626,6 +642,7 @@ fn str_to_end_source(value: &str) -> RtcStorageResult<RtcMediaSessionEndSource> 
         "unknown" => Ok(RtcMediaSessionEndSource::Unknown),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "end_source",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
-

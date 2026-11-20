@@ -5,8 +5,6 @@ use sqlx::{Executor, PgPool, Postgres, Row, postgres::PgRow};
 
 use crate::{RtcStorageError, RtcStorageResult};
 
-
-
 #[derive(Clone, Debug)]
 pub struct RtcPostgresMediaSessionIdempotencyRepository {
     pool: PgPool,
@@ -343,10 +341,7 @@ fn validate_idempotency_claim_match(
     record: &RtcMediaSessionIdempotencyRecord,
     existing: &RtcMediaSessionIdempotencyRecord,
 ) -> RtcStorageResult<()> {
-    if idempotency_payload_mismatch(
-        existing.payload_hash.as_str(),
-        record.payload_hash.as_str(),
-    ) {
+    if idempotency_payload_mismatch(existing.payload_hash.as_str(), record.payload_hash.as_str()) {
         return Err(RtcStorageError::Conflict(format!(
             "RTC media session idempotency key reused with different payload: {}",
             record.idempotency_key
@@ -360,7 +355,6 @@ fn validate_idempotency_claim_match(
     }
     Ok(())
 }
-
 
 fn postgres_row_to_idempotency_record(
     row: PgRow,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use sdkwork_communication_rtc_service::RtcPersistencePort;
 use sdkwork_database_repository::health::{HealthCheckResult, HealthChecker, HealthStatus};
-use sdkwork_database_sqlx::{create_pool_from_env, DatabasePool, PoolError};
+use sdkwork_database_sqlx::{DatabasePool, PoolError, create_pool_from_env};
 
 use crate::RtcPostgresPersistencePort;
 
@@ -33,16 +33,16 @@ const RTC_DATABASE_ENV_KEYS: &[&str] = &[
 ];
 
 /// Connects an RTC persistence port using the standard SDKWork database env profile.
-pub async fn connect_rtc_persistence_from_env(
-) -> Result<Option<Arc<dyn RtcPersistencePort>>, PoolError> {
+pub async fn connect_rtc_persistence_from_env()
+-> Result<Option<Arc<dyn RtcPersistencePort>>, PoolError> {
     Ok(connect_rtc_persistence_bootstrap_from_env()
         .await?
         .map(|bootstrap| bootstrap.persistence))
 }
 
 /// Connects RTC persistence and retains the framework pool for readiness probes.
-pub async fn connect_rtc_persistence_bootstrap_from_env(
-) -> Result<Option<RtcPersistenceBootstrap>, PoolError> {
+pub async fn connect_rtc_persistence_bootstrap_from_env()
+-> Result<Option<RtcPersistenceBootstrap>, PoolError> {
     if !rtc_database_env_explicitly_configured() {
         return Ok(None);
     }

@@ -13,29 +13,20 @@ pub mod provider_profile;
 pub mod provider_route;
 pub mod session_token_grant;
 pub use completion_record::{
-    RtcPostgresCompletionRecordRepository, RtcStorageError,
-    RtcStorageResult,
+    RtcPostgresCompletionRecordRepository, RtcStorageError, RtcStorageResult,
 };
 pub use database::{
     RtcPersistenceBootstrap, check_rtc_database_health, connect_rtc_persistence_bootstrap_from_env,
     connect_rtc_persistence_from_env, is_rtc_database_healthy, persistence_from_database_pool,
 };
-pub use media_session::{RtcPostgresMediaSessionRepository};
-pub use media_session_idempotency::{
-    RtcPostgresMediaSessionIdempotencyRepository,
-};
-pub use persistence::{RtcPostgresPersistencePort};
-pub use provider_account::{
-    RtcPostgresProviderAccountRepository,
-};
-pub use provider_event::{RtcPostgresProviderEventRepository};
-pub use provider_profile::{
-    RtcPostgresProviderProfileRepository,
-};
-pub use provider_route::{RtcPostgresProviderRouteRepository};
-pub use session_token_grant::{
-    RtcPostgresSessionTokenGrantRepository,
-};
+pub use media_session::RtcPostgresMediaSessionRepository;
+pub use media_session_idempotency::RtcPostgresMediaSessionIdempotencyRepository;
+pub use persistence::RtcPostgresPersistencePort;
+pub use provider_account::RtcPostgresProviderAccountRepository;
+pub use provider_event::RtcPostgresProviderEventRepository;
+pub use provider_profile::RtcPostgresProviderProfileRepository;
+pub use provider_route::RtcPostgresProviderRouteRepository;
+pub use session_token_grant::RtcPostgresSessionTokenGrantRepository;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RtcTableContract {
@@ -593,4 +584,3 @@ pub const RTC_TABLES: &[RtcTableContract] = &[
         ],
     },
 ];
-

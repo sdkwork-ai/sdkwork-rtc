@@ -9,8 +9,8 @@ use sdkwork_communication_rtc_service::{
     RtcProviderQueryRequest, RtcProviderQueryResult, RtcProviderWebhookEvent,
     RtcProviderWebhookParseRequest, RtcProviderWebhookVerifyRequest, RtcRecordingArtifact,
     RtcRecordingArtifactExportRequest, RtcRecordingArtifactImportPort, RtcRecordingArtifactsFuture,
-    RtcSessionHandle, plugin_descriptor_from_provider_schema, require_signed_provider_configuration,
-    utc_now_rfc3339_millis,
+    RtcSessionHandle, plugin_descriptor_from_provider_schema,
+    require_signed_provider_configuration, utc_now_rfc3339_millis,
 };
 
 use crate::config::TencentRtcProviderConfig;
@@ -215,11 +215,7 @@ impl RtcProviderPort for TencentRtcProvider {
         &self,
         request: RtcCdnRelayStartRequest,
     ) -> Result<RtcCdnRelayHandle, RtcContractError> {
-        live_stream::start_cdn_relay(
-            &self.config,
-            self.open_api_executor.as_deref(),
-            request,
-        )
+        live_stream::start_cdn_relay(&self.config, self.open_api_executor.as_deref(), request)
     }
 
     fn stop_cdn_relay(&self, request: RtcCdnRelayStopRequest) -> Result<bool, RtcContractError> {

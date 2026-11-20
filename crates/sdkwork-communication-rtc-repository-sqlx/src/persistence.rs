@@ -1,29 +1,34 @@
 use std::collections::BTreeMap;
 
 use sdkwork_communication_rtc_service::{
-    RtcActiveProviderProfileListPage, RtcMediaArtifact, RtcMediaArtifactListPage, RtcMediaSession, RtcMediaSessionCompletionRecord,
-    RtcMediaSessionIdempotencyClaim, RtcMediaSessionIdempotencyRecord, RtcMediaSessionListPage,
-    RtcPersistenceChangeSet, RtcPersistenceError, RtcPersistenceFuture, RtcPersistencePort,
-    RtcProviderAccountListPage, RtcProviderApplicationListPage, RtcProviderCredentialListPage,
-    RtcProviderAccount, RtcProviderApplication, RtcProviderCredential, RtcProviderProfile,
-    RtcProviderRoute,
-    RtcProviderEventKind, RtcProviderProfileListPage, RtcProviderQueryJobRecord,
-    RtcProviderQueryKind, RtcProviderQuerySnapshotListPage, RtcProviderQuerySnapshotRecord,
+    RtcActiveProviderProfileListPage, RtcMediaArtifact, RtcMediaArtifactListPage, RtcMediaSession,
+    RtcMediaSessionCompletionRecord, RtcMediaSessionIdempotencyClaim,
+    RtcMediaSessionIdempotencyRecord, RtcMediaSessionListPage, RtcPersistenceChangeSet,
+    RtcPersistenceError, RtcPersistenceFuture, RtcPersistencePort, RtcProviderAccount,
+    RtcProviderAccountListPage, RtcProviderApplication, RtcProviderApplicationListPage,
+    RtcProviderCredential, RtcProviderCredentialListPage, RtcProviderEventKind, RtcProviderProfile,
+    RtcProviderProfileListPage, RtcProviderQueryJobRecord, RtcProviderQueryKind,
+    RtcProviderQuerySnapshotListPage, RtcProviderQuerySnapshotRecord, RtcProviderRoute,
     RtcProviderRouteListPage, RtcProviderWebhookEventListPage, RtcProviderWebhookEventRecord,
     RtcQualitySampleListPage, RtcRecordingLifecycleReconcileQuery, RtcRoom, RtcRoomListPage,
-    RtcRoomScopeQuery, RtcRuntimeLoadRequest, RtcScopedListQuery, RtcTenantOrganizationScope,
+    RtcRoomScopeQuery, RtcRuntimeLoadRequest, RtcScopedListQuery,
     RtcStaleMediaSessionReconcileCandidates, RtcStaleMediaSessionReconcileQuery,
-    rtc_hydration_max_idempotency_records,
+    RtcTenantOrganizationScope, rtc_hydration_max_idempotency_records,
     rtc_hydration_max_media_sessions, rtc_hydration_max_provider_accounts,
     rtc_hydration_max_provider_applications, rtc_hydration_max_provider_credentials,
     rtc_hydration_max_provider_profiles, rtc_hydration_max_provider_query_jobs,
     rtc_hydration_max_provider_query_snapshots, rtc_hydration_max_provider_routes,
     rtc_hydration_max_rooms, rtc_hydration_max_session_token_grants,
-    rtc_hydration_max_webhook_events,
-    utc_now_rfc3339_millis};
+    rtc_hydration_max_webhook_events, utc_now_rfc3339_millis,
+};
 use sqlx::{Executor, PgPool, Postgres};
 
 use crate::{
+    RtcPostgresCompletionRecordRepository, RtcPostgresMediaSessionIdempotencyRepository,
+    RtcPostgresMediaSessionRepository, RtcPostgresProviderAccountRepository,
+    RtcPostgresProviderEventRepository, RtcPostgresProviderProfileRepository,
+    RtcPostgresProviderRouteRepository, RtcPostgresSessionTokenGrantRepository, RtcStorageError,
+    RtcStorageResult,
     persistence_list_pages::{
         postgres_list_active_provider_profiles_page, postgres_list_media_artifacts_page,
         postgres_list_media_artifacts_scope_page, postgres_list_media_sessions_page,
@@ -31,17 +36,9 @@ use crate::{
         postgres_list_provider_credentials_page, postgres_list_provider_profiles_page,
         postgres_list_provider_query_snapshots_page, postgres_list_provider_routes_page,
         postgres_list_quality_samples_scope_page, postgres_list_rooms_page,
-        postgres_list_webhook_events_page},
-    RtcPostgresCompletionRecordRepository, RtcPostgresMediaSessionIdempotencyRepository,
-    RtcPostgresMediaSessionRepository, RtcPostgresProviderAccountRepository,
-    RtcPostgresProviderEventRepository, RtcPostgresProviderProfileRepository,
-    RtcPostgresProviderRouteRepository, RtcPostgresSessionTokenGrantRepository,
-    
-     RtcStorageError,
-    RtcStorageResult};
-
-
-
+        postgres_list_webhook_events_page,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct RtcPostgresPersistencePort {
@@ -51,7 +48,8 @@ pub struct RtcPostgresPersistencePort {
     provider_accounts: RtcPostgresProviderAccountRepository,
     provider_profiles: RtcPostgresProviderProfileRepository,
     provider_routes: RtcPostgresProviderRouteRepository,
-    session_token_grants: RtcPostgresSessionTokenGrantRepository}
+    session_token_grants: RtcPostgresSessionTokenGrantRepository,
+}
 
 impl RtcPostgresPersistencePort {
     pub fn new(pool: PgPool) -> Self {
@@ -62,7 +60,8 @@ impl RtcPostgresPersistencePort {
             provider_accounts: RtcPostgresProviderAccountRepository::new(pool.clone()),
             provider_profiles: RtcPostgresProviderProfileRepository::new(pool.clone()),
             provider_routes: RtcPostgresProviderRouteRepository::new(pool.clone()),
-            session_token_grants: RtcPostgresSessionTokenGrantRepository::new(pool)}
+            session_token_grants: RtcPostgresSessionTokenGrantRepository::new(pool),
+        }
     }
 
     async fn persist_changes_inner(
@@ -409,7 +408,8 @@ impl RtcPostgresPersistencePort {
             media_session_idempotencies,
             session_token_grants,
             session_token_grant_revocations: Vec::new(),
-            media_session_persist_versions})
+            media_session_persist_versions,
+        })
     }
 
     async fn prepare_media_session_create_with_idempotency_inner(
@@ -438,8 +438,7 @@ impl RtcPostgresPersistencePort {
         session: RtcMediaSession,
         updated_at: String,
     ) -> RtcStorageResult<RtcMediaSessionIdempotencyClaim> {
-        let idempotency_repo =
-            RtcPostgresMediaSessionIdempotencyRepository::new(self.pool.clone());
+        let idempotency_repo = RtcPostgresMediaSessionIdempotencyRepository::new(self.pool.clone());
         match idempotency_repo
             .claim_idempotency_record_on_transaction(
                 tx,
@@ -460,7 +459,8 @@ impl RtcPostgresPersistencePort {
                     .await?;
                 Ok(RtcMediaSessionIdempotencyClaim::Claimed)
             }
-            existing @ RtcMediaSessionIdempotencyClaim::Existing(_) => Ok(existing)}
+            existing @ RtcMediaSessionIdempotencyClaim::Existing(_) => Ok(existing),
+        }
     }
 }
 
@@ -751,9 +751,9 @@ impl RtcPersistencePort for RtcPostgresPersistencePort {
         &'a self,
         query: RtcScopedListQuery,
     ) -> RtcPersistenceFuture<'a, RtcMediaSessionListPage> {
-        Box::pin(async move {
-            postgres_list_media_sessions_page(&self.media_sessions, query).await
-        })
+        Box::pin(
+            async move { postgres_list_media_sessions_page(&self.media_sessions, query).await },
+        )
     }
 
     fn list_active_provider_profiles_page<'a>(
@@ -818,9 +818,9 @@ impl RtcPersistencePort for RtcPostgresPersistencePort {
         &'a self,
         query: RtcScopedListQuery,
     ) -> RtcPersistenceFuture<'a, RtcProviderRouteListPage> {
-        Box::pin(async move {
-            postgres_list_provider_routes_page(&self.provider_routes, query).await
-        })
+        Box::pin(
+            async move { postgres_list_provider_routes_page(&self.provider_routes, query).await },
+        )
     }
 
     fn list_webhook_events_page<'a>(
@@ -878,8 +878,6 @@ impl RtcPersistencePort for RtcPostgresPersistencePort {
         })
     }
 }
-
-
 
 async fn try_insert_postgres_provider_webhook_event(
     pool: &PgPool,
@@ -1116,8 +1114,6 @@ where
     Ok(())
 }
 
-
-
 async fn upsert_postgres_provider_query_job<'e, E>(
     executor: E,
     job: &RtcProviderQueryJobRecord,
@@ -1321,7 +1317,8 @@ fn scoped_session<'a>(
         .get(media_session_id)
         .map(|(tenant_id, organization_id)| (tenant_id.as_str(), organization_id.as_str()))
         .ok_or_else(|| RtcStorageError::MissingMediaSessionSummary {
-            media_session_id: media_session_id.to_string()})
+            media_session_id: media_session_id.to_string(),
+        })
 }
 
 fn change_timestamp(changes: &RtcPersistenceChangeSet) -> String {
@@ -1367,7 +1364,8 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
         .parse::<i64>()
         .map_err(|_| RtcStorageError::InvalidEnumValue {
             field,
-            value: value.to_string()})
+            value: value.to_string(),
+        })
 }
 
 fn query_kind_to_str(value: &RtcProviderQueryKind) -> &'static str {
@@ -1376,7 +1374,8 @@ fn query_kind_to_str(value: &RtcProviderQueryKind) -> &'static str {
         RtcProviderQueryKind::RoomState => "room_state",
         RtcProviderQueryKind::MediaSessionState => "media_session_state",
         RtcProviderQueryKind::RecordingArtifacts => "recording_artifacts",
-        RtcProviderQueryKind::QualitySamples => "quality_samples"}
+        RtcProviderQueryKind::QualitySamples => "quality_samples",
+    }
 }
 
 fn provider_query_status_to_i32(value: &str) -> RtcStorageResult<i32> {
@@ -1387,7 +1386,9 @@ fn provider_query_status_to_i32(value: &str) -> RtcStorageResult<i32> {
         "failed" => Ok(4),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "provider_query_status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn event_kind_to_str(value: &RtcProviderEventKind) -> &'static str {
@@ -1402,7 +1403,8 @@ fn event_kind_to_str(value: &RtcProviderEventKind) -> &'static str {
         RtcProviderEventKind::MediaTrackStarted => "media_track_started",
         RtcProviderEventKind::MediaTrackStopped => "media_track_stopped",
         RtcProviderEventKind::QualitySample => "quality_sample",
-        RtcProviderEventKind::Unknown => "unknown"}
+        RtcProviderEventKind::Unknown => "unknown",
+    }
 }
 
 fn webhook_status_to_i32(value: &str) -> RtcStorageResult<i32> {
@@ -1413,7 +1415,9 @@ fn webhook_status_to_i32(value: &str) -> RtcStorageResult<i32> {
         "ignored" => Ok(4),
         _ => Err(RtcStorageError::InvalidEnumValue {
             field: "webhook_status",
-            value: value.to_string()})}
+            value: value.to_string(),
+        }),
+    }
 }
 
 fn optional_dedupe_key(value: Option<&str>, fallback: &str) -> String {
@@ -1474,9 +1478,7 @@ fn scoped_provider_route(
     tenant_id: &str,
     organization_id: &str,
 ) -> Option<RtcProviderRoute> {
-    route.filter(|route| {
-        route.tenant_id == tenant_id && route.organization_id == organization_id
-    })
+    route.filter(|route| route.tenant_id == tenant_id && route.organization_id == organization_id)
 }
 
 fn scoped_provider_query_job(
@@ -1498,7 +1500,8 @@ fn storage_to_persistence_error(error: RtcStorageError) -> RtcPersistenceError {
         {
             RtcPersistenceError::Conflict(database_error.to_string())
         }
-        other => RtcPersistenceError::Unavailable(other.to_string())}
+        other => RtcPersistenceError::Unavailable(other.to_string()),
+    }
 }
 
 #[allow(dead_code)]

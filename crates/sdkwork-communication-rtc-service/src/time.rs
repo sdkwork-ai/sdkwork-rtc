@@ -42,8 +42,8 @@ pub fn format_unix_seconds_rfc3339_u64(seconds: u64) -> String {
 }
 
 pub fn session_reconcile_cutoff_rfc3339(age_ms: u64) -> String {
-    let cutoff_ms = sdkwork_utils_rust::now().timestamp_millis()
-        - i64::try_from(age_ms).unwrap_or(i64::MAX);
+    let cutoff_ms =
+        sdkwork_utils_rust::now().timestamp_millis() - i64::try_from(age_ms).unwrap_or(i64::MAX);
     let cutoff = sdkwork_utils_rust::from_unix_millis(cutoff_ms)
         .expect("session reconcile cutoff must fit chrono range");
     sdkwork_utils_rust::format_datetime(cutoff, None)

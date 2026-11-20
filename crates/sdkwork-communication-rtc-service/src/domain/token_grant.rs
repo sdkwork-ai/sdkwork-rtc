@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use sdkwork_utils_rust::sha256_hash;
+use serde::{Deserialize, Serialize};
 
 use super::session::RtcParticipantCredential;
 
@@ -123,11 +123,7 @@ pub fn build_session_token_grant_from_credential(
 ) -> RtcSessionTokenGrant {
     let created_at = created_at.into();
     let organization_id = organization_id.into();
-    let nonce = credential
-        .credential
-        .chars()
-        .take(12)
-        .collect::<String>();
+    let nonce = credential.credential.chars().take(12).collect::<String>();
     RtcSessionTokenGrant {
         id: session_token_grant_record_id(
             credential.tenant_id.as_str(),
@@ -182,14 +178,16 @@ mod tests {
             &grant,
             "2026-01-01T00:00:00.000Z"
         ));
-        assert!(validate_session_token_grant_for_credential(
-            &grant,
-            "token-abc",
-            "session-1",
-            "participant-1",
-            "2026-01-01T00:00:00.000Z"
-        )
-        .is_ok());
+        assert!(
+            validate_session_token_grant_for_credential(
+                &grant,
+                "token-abc",
+                "session-1",
+                "participant-1",
+                "2026-01-01T00:00:00.000Z"
+            )
+            .is_ok()
+        );
     }
 
     #[test]

@@ -68,8 +68,9 @@ mod tests {
     use super::*;
     use crate::service::{
         RtcActiveProviderProfileListData, RtcAppApiError, RtcAppApiFuture, RtcAppListQuery,
-        RtcCreateAppMediaSessionRequest, RtcCreateAppRoomRequest, RtcIssueParticipantCredentialRequest, RtcListRequest,
-        RtcMediaArtifactListData, RtcMediaSessionListData, RtcRoomListData,
+        RtcCreateAppMediaSessionRequest, RtcCreateAppRoomRequest,
+        RtcIssueParticipantCredentialRequest, RtcListRequest, RtcMediaArtifactListData,
+        RtcMediaSessionListData, RtcRoomListData,
     };
 
     #[tokio::test]

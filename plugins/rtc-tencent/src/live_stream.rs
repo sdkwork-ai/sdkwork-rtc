@@ -99,7 +99,8 @@ pub(crate) fn resolve_live_audience_playback(
     config: &TencentRtcProviderConfig,
     request: RtcLiveAudiencePlaybackRequest,
 ) -> Result<RtcLiveAudiencePlayback, RtcContractError> {
-    let session_id = format_cdn_relay_provider_session_id("tencent", request.rtc_session_id.as_str());
+    let session_id =
+        format_cdn_relay_provider_session_id("tencent", request.rtc_session_id.as_str());
     let playback_url = format!(
         "{}/live/{}",
         config.access_endpoint.trim_end_matches("/session"),
@@ -116,23 +117,32 @@ fn development_cdn_relay_handle(request: &RtcCdnRelayStartRequest) -> RtcCdnRela
     let push_url = (request.mode == RtcCdnRelayMode::Push).then(|| {
         format!(
             "rtmp://cdn.tencent.local/push/{}",
-            request.stream_id.as_deref().unwrap_or(request.rtc_session_id.as_str())
+            request
+                .stream_id
+                .as_deref()
+                .unwrap_or(request.rtc_session_id.as_str())
         )
     });
     let pull_url = match request.mode {
         RtcCdnRelayMode::Pull | RtcCdnRelayMode::Push => Some(format!(
             "https://cdn.tencent.local/play/{}",
-            request.stream_id.as_deref().unwrap_or(request.rtc_session_id.as_str())
+            request
+                .stream_id
+                .as_deref()
+                .unwrap_or(request.rtc_session_id.as_str())
         )),
     };
     RtcCdnRelayHandle {
         relay_id,
         push_url,
         pull_url,
-        provider_snapshot_json: Some(json!({
-            "mode": "development-placeholder",
-            "cdnRelayMode": request.mode,
-        }).to_string()),
+        provider_snapshot_json: Some(
+            json!({
+                "mode": "development-placeholder",
+                "cdnRelayMode": request.mode,
+            })
+            .to_string(),
+        ),
     }
 }
 
@@ -141,7 +151,11 @@ fn start_cdn_relay_body(
     request: &RtcCdnRelayStartRequest,
 ) -> Result<String, RtcContractError> {
     let mut body = Map::new();
-    if let Some(sdk_app_id) = config.sdk_app_id.as_deref().filter(|value| !value.is_empty()) {
+    if let Some(sdk_app_id) = config
+        .sdk_app_id
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
         body.insert("SdkAppId".into(), parse_sdk_app_id(sdk_app_id)?);
     }
     body.insert(
@@ -155,11 +169,7 @@ fn start_cdn_relay_body(
     {
         body.insert("StreamId".into(), JsonValue::String(stream_id.into()));
     }
-    if let Some(region) = request
-        .region
-        .as_deref()
-        .filter(|value| !value.is_empty())
-    {
+    if let Some(region) = request.region.as_deref().filter(|value| !value.is_empty()) {
         body.insert("Region".into(), JsonValue::String(region.into()));
     }
     serde_json::to_string(&JsonValue::Object(body)).map_err(|error| {
@@ -172,12 +182,18 @@ fn stop_cdn_relay_body(
     request: &RtcCdnRelayStopRequest,
 ) -> Result<String, RtcContractError> {
     let mut body = Map::new();
-    if let Some(sdk_app_id) = config.sdk_app_id.as_deref().filter(|value| !value.is_empty()) {
+    if let Some(sdk_app_id) = config
+        .sdk_app_id
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
         body.insert("SdkAppId".into(), parse_sdk_app_id(sdk_app_id)?);
     }
     body.insert("TaskId".into(), JsonValue::String(request.relay_id.clone()));
     serde_json::to_string(&JsonValue::Object(body)).map_err(|error| {
-        RtcContractError::Conflict(format!("failed to encode tencent cdn relay stop body: {error}"))
+        RtcContractError::Conflict(format!(
+            "failed to encode tencent cdn relay stop body: {error}"
+        ))
     })
 }
 
@@ -203,7 +219,10 @@ fn parse_provider_response(
             "failed to parse tencent cdn relay response JSON: {error}"
         ))
     })?;
-    if let Some(error) = body.pointer("/Response/Error/Code").and_then(JsonValue::as_str) {
+    if let Some(error) = body
+        .pointer("/Response/Error/Code")
+        .and_then(JsonValue::as_str)
+    {
         let message = body
             .pointer("/Response/Error/Message")
             .and_then(JsonValue::as_str)

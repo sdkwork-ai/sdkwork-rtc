@@ -78,8 +78,7 @@ pub fn load_recording_policy_settings_from_env() -> Result<RtcRecordingPolicySet
 }
 
 pub fn recording_lifecycle_cutoff_rfc3339(days: u32) -> String {
-    let cutoff_ms = sdkwork_utils_rust::now().timestamp_millis()
-        - i64::from(days) * 86_400_000;
+    let cutoff_ms = sdkwork_utils_rust::now().timestamp_millis() - i64::from(days) * 86_400_000;
     let cutoff = sdkwork_utils_rust::from_unix_millis(cutoff_ms)
         .expect("recording lifecycle cutoff must fit chrono range");
     sdkwork_utils_rust::format_datetime(cutoff, None)
@@ -135,16 +134,22 @@ mod tests {
     };
 
     fn sample_artifact(status: RtcRecordingArtifactStatus, ended_at: &str) -> RtcMediaArtifact {
-        RtcRecordingArtifact::drive_backed_recording("100001", "session-1", "space-1", "node-1", Some("1".into()))
-            .into_media_artifact(RtcMediaArtifactDescriptor {
-                id: "artifact-1".into(),
-                owner_user_id: "200001".into(),
-                artifact_kind: RtcRecordingArtifactKind::Recording,
-                artifact_status: status,
-                media_role: "mixed".into(),
-                started_at: ended_at.into(),
-                ended_at: ended_at.into(),
-            })
+        RtcRecordingArtifact::drive_backed_recording(
+            "100001",
+            "session-1",
+            "space-1",
+            "node-1",
+            Some("1".into()),
+        )
+        .into_media_artifact(RtcMediaArtifactDescriptor {
+            id: "artifact-1".into(),
+            owner_user_id: "200001".into(),
+            artifact_kind: RtcRecordingArtifactKind::Recording,
+            artifact_status: status,
+            media_role: "mixed".into(),
+            started_at: ended_at.into(),
+            ended_at: ended_at.into(),
+        })
     }
 
     #[test]

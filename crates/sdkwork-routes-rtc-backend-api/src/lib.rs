@@ -15,8 +15,8 @@ pub use paths::{RTC_BACKEND_ROUTES, RtcBackendRoute, match_backend_route, route_
 pub use routes::build_sdkwork_rtc_backend_api_router;
 pub use service::*;
 pub use web_bootstrap::{
-    gateway_route_manifest, wrap_router_with_web_framework, wrap_router_with_web_framework_from_env,
-    RtcBackendContextInjector,
+    RtcBackendContextInjector, gateway_route_manifest, wrap_router_with_web_framework,
+    wrap_router_with_web_framework_from_env,
 };
 
 pub fn gateway_mount(service: Arc<dyn RtcBackendApiService>) -> Router {

@@ -53,7 +53,11 @@ pub fn rtc_hydration_max_provider_query_jobs() -> usize {
 }
 
 pub fn rtc_hydration_max_provider_query_snapshots() -> usize {
-    rtc_hydration_limit("SDKWORK_RTC_HYDRATION_MAX_PROVIDER_QUERY_SNAPSHOTS", 200, 5000)
+    rtc_hydration_limit(
+        "SDKWORK_RTC_HYDRATION_MAX_PROVIDER_QUERY_SNAPSHOTS",
+        200,
+        5000,
+    )
 }
 
 pub fn rtc_hydration_max_idempotency_records() -> usize {
@@ -61,7 +65,11 @@ pub fn rtc_hydration_max_idempotency_records() -> usize {
 }
 
 pub fn rtc_hydration_max_session_token_grants() -> usize {
-    rtc_hydration_limit("SDKWORK_RTC_HYDRATION_MAX_SESSION_TOKEN_GRANTS", 500, 10_000)
+    rtc_hydration_limit(
+        "SDKWORK_RTC_HYDRATION_MAX_SESSION_TOKEN_GRANTS",
+        500,
+        10_000,
+    )
 }
 
 pub fn rtc_hydration_max_provider_accounts() -> usize {
@@ -110,8 +118,10 @@ pub fn validate_production_runtime_profile() -> Result<(), String> {
         .or_else(|_| std::env::var("SDKWORK_DEPLOYMENT_PROFILE"))
         .unwrap_or_default()
         .to_ascii_lowercase();
-    if matches!(deployment_profile.as_str(), "production" | "staging" | "prod")
-        && rtc_allows_in_memory_only_runtime()
+    if matches!(
+        deployment_profile.as_str(),
+        "production" | "staging" | "prod"
+    ) && rtc_allows_in_memory_only_runtime()
     {
         return Err(format!(
             "SDKWORK_RTC_ENVIRONMENT must not be development, dev, local, or test when deployment profile is {deployment_profile}"
@@ -122,9 +132,7 @@ pub fn validate_production_runtime_profile() -> Result<(), String> {
         "production" | "staging" | "prod"
     ) || rtc_persistence_required();
     if requires_app_context_signature {
-        if !parse_truthy_env_flag(
-            std::env::var("SDKWORK_RTC_APP_CONTEXT_REQUIRE_SIGNATURE").ok(),
-        ) {
+        if !parse_truthy_env_flag(std::env::var("SDKWORK_RTC_APP_CONTEXT_REQUIRE_SIGNATURE").ok()) {
             return Err(
                 "SDKWORK_RTC_APP_CONTEXT_REQUIRE_SIGNATURE must be true for production RTC runtime"
                     .to_string(),
@@ -163,8 +171,8 @@ mod tests {
     use std::sync::{Mutex, OnceLock};
 
     use super::{
-        provider_credential_signing_ready, validate_production_runtime_profile,
-        ProviderHealthSnapshot,
+        ProviderHealthSnapshot, provider_credential_signing_ready,
+        validate_production_runtime_profile,
     };
 
     fn env_lock() -> &'static Mutex<()> {

@@ -8,8 +8,6 @@ use sqlx::{PgPool, Row, postgres::PgRow};
 
 use crate::{RtcStorageError, RtcStorageResult};
 
-
-
 #[derive(Clone, Debug)]
 pub struct RtcPostgresProviderEventRepository {
     pool: PgPool,
@@ -490,7 +488,6 @@ impl RtcPostgresProviderEventRepository {
     }
 }
 
-
 fn postgres_insert_webhook_event_sql() -> &'static str {
     r#"
     INSERT INTO rtc_provider_webhook_event (
@@ -561,7 +558,6 @@ fn postgres_insert_webhook_event_sql() -> &'static str {
     "#
 }
 
-
 fn postgres_upsert_provider_query_job_sql() -> &'static str {
     r#"
     INSERT INTO rtc_provider_query_job (
@@ -624,7 +620,6 @@ fn postgres_upsert_provider_query_job_sql() -> &'static str {
         version = rtc_provider_query_job.version + 1
     "#
 }
-
 
 fn postgres_insert_provider_query_snapshot_sql() -> &'static str {
     r#"
@@ -829,7 +824,6 @@ fn postgres_provider_query_snapshot_select_columns_sql(
     )
 }
 
-
 fn postgres_row_to_webhook_event_record(
     row: PgRow,
 ) -> RtcStorageResult<RtcProviderWebhookEventRecord> {
@@ -859,7 +853,6 @@ fn postgres_row_to_webhook_event_record(
     })
 }
 
-
 fn postgres_row_to_provider_query_job_record(
     row: PgRow,
 ) -> RtcStorageResult<RtcProviderQueryJobRecord> {
@@ -884,7 +877,6 @@ fn postgres_row_to_provider_query_job_record(
         result_snapshot: result_snapshot.0,
     })
 }
-
 
 fn postgres_row_to_provider_query_snapshot_record(
     row: PgRow,
@@ -1006,7 +998,6 @@ fn parse_i64_field(field: &'static str, value: &str) -> RtcStorageResult<i64> {
         })
 }
 
-
 fn postgres_i64_column_to_string(row: &PgRow, column: &'static str) -> RtcStorageResult<String> {
     let value: i64 = row.try_get(column)?;
     Ok(value.to_string())
@@ -1126,4 +1117,3 @@ fn provider_query_snapshot_sort_column(field: &str) -> &'static str {
         _ => "uuid",
     }
 }
-
