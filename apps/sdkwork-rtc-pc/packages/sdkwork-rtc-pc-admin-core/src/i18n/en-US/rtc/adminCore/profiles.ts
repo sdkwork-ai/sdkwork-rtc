@@ -19,5 +19,6 @@ export const adminRtcProfilesEn = {
   "admin.rtc.profiles.edit": "Edit",
   "admin.rtc.profiles.verify": "Verify",
   "admin.rtc.profiles.disable": "Disable",
+  "admin.rtc.profiles.activate": "Disable",
   "admin.rtc.profiles.form.title": "{{name}} Profile",
 } as const;

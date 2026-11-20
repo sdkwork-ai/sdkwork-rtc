@@ -71,6 +71,11 @@ export class RtcProviderRoutesRtcProviderRoutesApi {
     return this.client.request<RtcProviderRoute>(backendApiPath(`/rtc/provider_routes/${serializePathParameter(providerRouteId, { name: 'providerRouteId', style: 'simple', explode: false })}`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'PATCH' as any, ...(body !== undefined ? { body, contentType: 'application/json' } : {}), ...(requestHeaders !== undefined ? { headers: requestHeaders } : {}), sdkworkUnwrapKind: 'item' });
   }
 
+/** Rtc provider Routes activate. */
+  async activate(providerRouteId: string, body: unknown, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
+    return this.client.request<RtcProviderRoute>(backendApiPath(`/rtc/provider_routes/${serializePathParameter(providerRouteId, { name: 'providerRouteId', style: 'simple', explode: false })}/activate`), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'POST' as any, body, contentType: 'application/json', sdkworkUnwrapKind: 'item' });
+  }
+
 /** Rtc provider Routes disable. */
   async disable(providerRouteId: string, body: RtcProviderRouteDisableRequest, params: RtcProviderRoutesRtcProviderRoutesDisableParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
     const requestHeaders = buildRequestHeaders(

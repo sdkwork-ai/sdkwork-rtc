@@ -76,6 +76,16 @@ export class ProviderRouteService {
     return response;
   }
 
+  async activate(id: string): Promise<ProviderRoute> {
+    const response = await this.client.rtcProviderRoutes.rtc.providerRoutes.activate(
+      id,
+      { idempotencyKey: newIdempotencyKey() },
+    );
+    if (!response) {
+      throw new Error("Invalid response: missing data");
+    }
+    return response;
+  }
   async disable(id: string, reason?: string): Promise<ProviderRoute> {
     const response = await this.client.rtcProviderRoutes.rtc.providerRoutes.disable(id, {
       reason,

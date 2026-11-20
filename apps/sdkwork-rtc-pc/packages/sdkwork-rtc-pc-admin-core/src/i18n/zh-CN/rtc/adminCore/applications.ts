@@ -15,6 +15,7 @@ export const adminRtcApplicationsZh = {
   "admin.rtc.applications.col.actions": "操作",
   "admin.rtc.applications.edit": "编辑",
   "admin.rtc.applications.disable": "停用",
+  "admin.rtc.applications.activate": "停用",
   "admin.rtc.applications.form.title": "{{name}} 应用",
   "admin.rtc.applications.failedLoad": "应用加载失败",
   "admin.rtc.applications.failedDisable": "停用应用失败",

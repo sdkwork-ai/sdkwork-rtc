@@ -30,6 +30,10 @@ pub fn build_sdkwork_rtc_backend_api_router(service: Arc<dyn RtcBackendApiServic
             post(handlers::disable_provider_account),
         )
         .route(
+            "/backend/v3/api/rtc/provider_accounts/{provider_account_id}/activate",
+            post(handlers::activate_provider_account),
+        )
+        .route(
             "/backend/v3/api/rtc/provider_accounts/{provider_account_id}/applications",
             get(handlers::list_provider_applications).post(handlers::create_provider_application),
         )
@@ -41,6 +45,10 @@ pub fn build_sdkwork_rtc_backend_api_router(service: Arc<dyn RtcBackendApiServic
         .route(
             "/backend/v3/api/rtc/provider_applications/{provider_application_id}/disable",
             post(handlers::disable_provider_application),
+        )
+        .route(
+            "/backend/v3/api/rtc/provider_applications/{provider_application_id}/activate",
+            post(handlers::activate_provider_application),
         )
         .route(
             "/backend/v3/api/rtc/provider_applications/{provider_application_id}/credentials",
@@ -67,6 +75,10 @@ pub fn build_sdkwork_rtc_backend_api_router(service: Arc<dyn RtcBackendApiServic
             post(handlers::disable_provider_profile),
         )
         .route(
+            "/backend/v3/api/rtc/provider_profiles/{provider_profile_id}/activate",
+            post(handlers::activate_provider_profile),
+        )
+        .route(
             "/backend/v3/api/rtc/provider_profiles/{provider_profile_id}/verify",
             post(handlers::verify_provider_profile),
         )
@@ -81,6 +93,10 @@ pub fn build_sdkwork_rtc_backend_api_router(service: Arc<dyn RtcBackendApiServic
         .route(
             "/backend/v3/api/rtc/provider_routes/{provider_route_id}/disable",
             post(handlers::disable_provider_route),
+        )
+        .route(
+            "/backend/v3/api/rtc/provider_routes/{provider_route_id}/activate",
+            post(handlers::activate_provider_route),
         )
         .route(
             "/backend/v3/api/rtc/provider_defaults",
@@ -342,6 +358,16 @@ mod tests {
             self.record("disable_provider_account");
             Self::unavailable()
         }
+        fn activate_provider_account(
+            &self,
+            _tenant_id: String,
+            _organization_id: Option<String>,
+            _actor_id: String,
+            _provider_account_id: String,
+        ) -> RtcBackendApiFuture<RtcProviderAccount> {
+            self.record("activate_provider_account");
+            Self::unavailable()
+        }
 
         fn list_provider_applications(
             &self,
@@ -397,6 +423,16 @@ mod tests {
             _request: RtcProviderApplicationDisableRequest,
         ) -> RtcBackendApiFuture<RtcProviderApplication> {
             self.record("disable_provider_application");
+            Self::unavailable()
+        }
+        fn activate_provider_application(
+            &self,
+            _tenant_id: String,
+            _organization_id: Option<String>,
+            _actor_id: String,
+            _provider_application_id: String,
+        ) -> RtcBackendApiFuture<RtcProviderApplication> {
+            self.record("activate_provider_application");
             Self::unavailable()
         }
 
@@ -509,6 +545,16 @@ mod tests {
             self.record("disable_provider_profile");
             Self::unavailable()
         }
+        fn activate_provider_profile(
+            &self,
+            _tenant_id: String,
+            _organization_id: Option<String>,
+            _actor_id: String,
+            _provider_profile_id: String,
+        ) -> RtcBackendApiFuture<RtcProviderProfile> {
+            self.record("activate_provider_profile");
+            Self::unavailable()
+        }
 
         fn verify_provider_profile(
             &self,
@@ -572,6 +618,16 @@ mod tests {
             _request: RtcProviderRouteDisableRequest,
         ) -> RtcBackendApiFuture<RtcProviderRoute> {
             self.record("disable_provider_route");
+            Self::unavailable()
+        }
+        fn activate_provider_route(
+            &self,
+            _tenant_id: String,
+            _organization_id: Option<String>,
+            _actor_id: String,
+            _provider_route_id: String,
+        ) -> RtcBackendApiFuture<RtcProviderRoute> {
+            self.record("activate_provider_route");
             Self::unavailable()
         }
 

@@ -5,10 +5,11 @@ import type { ProviderAccount } from "../types/providerAccount";
 interface Props {
   accounts: ProviderAccount[];
   onSelect: (account: ProviderAccount) => void;
+  onActivate: (account: ProviderAccount) => void;
   onDisable: (account: ProviderAccount) => void;
 }
 
-export function ProviderAccountList({ accounts, onSelect, onDisable }: Props) {
+export function ProviderAccountList({ accounts, onSelect, onActivate, onDisable }: Props) {
   const { t } = useTranslation();
   return (
     <div className="provider-account-list">
@@ -38,6 +39,11 @@ export function ProviderAccountList({ accounts, onSelect, onDisable }: Props) {
                 {account.status === "active" && (
                   <button onClick={() => onDisable(account)}>
                     {t("admin.rtc.accounts.disable", "Disable")}
+                  </button>
+                )}
+                {account.status === "disabled" && (
+                  <button onClick={() => onActivate(account)}>
+                    {t("admin.rtc.accounts.activate", "Activate")}
                   </button>
                 )}
               </td>

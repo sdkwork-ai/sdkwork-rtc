@@ -54,6 +54,7 @@ export interface RtcAdminCenterServices {
     create(command: ProviderAccountCommand): Promise<ProviderAccount>;
     update(accountId: string, command: ProviderAccountCommand): Promise<ProviderAccount>;
     disable(accountId: string, reason?: string): Promise<ProviderAccount>;
+    activate(accountId: string): Promise<ProviderAccount>;
   };
   applications: {
     list(
@@ -80,6 +81,7 @@ export interface RtcAdminCenterServices {
     create(command: ProviderProfileCommand): Promise<ProviderProfile>;
     update(profileId: string, command: ProviderProfileCommand): Promise<ProviderProfile>;
     disable(profileId: string, reason?: string): Promise<ProviderProfile>;
+    activate(profileId: string): Promise<ProviderProfile>;
     verify(profileId: string, mode: ProviderVerifyMode): Promise<ProviderProfileVerifyResult>;
     configureCapabilities(
       profileId: string,

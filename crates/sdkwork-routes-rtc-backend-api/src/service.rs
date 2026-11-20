@@ -391,6 +391,13 @@ pub trait RtcBackendApiService: Send + Sync + 'static {
         provider_account_id: String,
         request: RtcProviderAccountDisableRequest,
     ) -> RtcBackendApiFuture<RtcProviderAccount>;
+    fn activate_provider_account(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_account_id: String,
+    ) -> RtcBackendApiFuture<RtcProviderAccount>;
 
     fn list_provider_applications(
         &self,
@@ -432,6 +439,13 @@ pub trait RtcBackendApiService: Send + Sync + 'static {
         actor_id: String,
         provider_application_id: String,
         request: RtcProviderApplicationDisableRequest,
+    ) -> RtcBackendApiFuture<RtcProviderApplication>;
+    fn activate_provider_application(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_application_id: String,
     ) -> RtcBackendApiFuture<RtcProviderApplication>;
 
     fn list_provider_credentials(
@@ -513,6 +527,13 @@ pub trait RtcBackendApiService: Send + Sync + 'static {
         provider_profile_id: String,
         request: RtcProviderProfileDisableRequest,
     ) -> RtcBackendApiFuture<RtcProviderProfile>;
+    fn activate_provider_profile(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_profile_id: String,
+    ) -> RtcBackendApiFuture<RtcProviderProfile>;
 
     fn verify_provider_profile(
         &self,
@@ -559,6 +580,13 @@ pub trait RtcBackendApiService: Send + Sync + 'static {
         actor_id: String,
         provider_route_id: String,
         request: RtcProviderRouteDisableRequest,
+    ) -> RtcBackendApiFuture<RtcProviderRoute>;
+    fn activate_provider_route(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_route_id: String,
     ) -> RtcBackendApiFuture<RtcProviderRoute>;
 
     fn list_media_sessions(

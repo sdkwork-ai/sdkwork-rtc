@@ -1914,6 +1914,35 @@ impl RtcProductService {
         .map_err(backend_error_from_product)?;
         Ok(account)
     }
+    async fn activate_provider_account_impl(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_account_id: String,
+    ) -> Result<RtcProviderAccount, RtcBackendApiError> {
+        let now = utc_now_rfc3339_millis();
+        let mut account = self
+            .retrieve_provider_account_impl(tenant_id, organization_id, provider_account_id.clone())
+            .await?;
+        account.status = RtcProviderAccountStatus::Active;
+        account.updated_by = Some(actor_id);
+        account.updated_at = Some(now);
+        account.last_verification_error = None;
+        account.version = next_version(Some(account.version.as_str()));
+        self.state
+            .lock()
+            .expect("rtc product state lock")
+            .provider_accounts
+            .insert(provider_account_id, account.clone());
+        self.persist_changes(RtcPersistenceChangeSet {
+            provider_accounts: vec![account.clone()],
+            ..RtcPersistenceChangeSet::default()
+        })
+        .await
+        .map_err(backend_error_from_product)?;
+        Ok(account)
+    }
 
     fn list_provider_applications_impl(
         &self,
@@ -2172,6 +2201,39 @@ impl RtcProductService {
         Ok(application)
     }
 
+    async fn activate_provider_application_impl(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_application_id: String,
+    ) -> Result<RtcProviderApplication, RtcBackendApiError> {
+        let now = utc_now_rfc3339_millis();
+        let mut application = self
+            .retrieve_provider_application_impl(
+                tenant_id,
+                organization_id,
+                provider_application_id.clone(),
+            )
+            .await?;
+        application.status = RtcProviderApplicationStatus::Active;
+        application.updated_by = Some(actor_id);
+        application.updated_at = Some(now);
+        application.last_verification_error = None;
+        application.version = next_version(Some(application.version.as_str()));
+        self.state
+            .lock()
+            .expect("rtc product state lock")
+            .provider_applications
+            .insert(provider_application_id, application.clone());
+        self.persist_changes(RtcPersistenceChangeSet {
+            provider_applications: vec![application.clone()],
+            ..RtcPersistenceChangeSet::default()
+        })
+        .await
+        .map_err(backend_error_from_product)?;
+        Ok(application)
+    }
     async fn retrieve_provider_application_impl(
         &self,
         tenant_id: String,
@@ -2850,6 +2912,34 @@ impl RtcProductService {
         Ok(profile)
     }
 
+    async fn activate_provider_profile_impl(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_profile_id: String,
+    ) -> Result<RtcProviderProfile, RtcBackendApiError> {
+        let now = utc_now_rfc3339_millis();
+        let mut profile = self
+            .retrieve_provider_profile_impl(tenant_id, organization_id, provider_profile_id.clone())
+            .await?;
+        profile.status = RtcProviderProfileStatus::Active;
+        profile.updated_by = Some(actor_id);
+        profile.updated_at = Some(now);
+        profile.version = next_version(Some(profile.version.as_str()));
+        self.state
+            .lock()
+            .expect("rtc product state lock")
+            .provider_profiles
+            .insert(provider_profile_id, profile.clone());
+        self.persist_changes(RtcPersistenceChangeSet {
+            provider_profiles: vec![profile.clone()],
+            ..RtcPersistenceChangeSet::default()
+        })
+        .await
+        .map_err(backend_error_from_product)?;
+        Ok(profile)
+    }
     async fn retrieve_provider_profile_impl(
         &self,
         tenant_id: String,
@@ -4196,6 +4286,29 @@ impl RtcProductService {
         state
             .provider_routes
             .insert(route.id.clone(), route.clone());
+        Ok(route)
+    }
+    async fn activate_provider_route_impl(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        provider_route_id: String,
+    ) -> Result<RtcProviderRoute, RtcBackendApiError> {
+        let mut route = self
+            .retrieve_provider_route_impl(tenant_id, organization_id, provider_route_id.clone())
+            .await?;
+        route.status = RtcProviderRouteStatus::Active;
+        self.state
+            .lock()
+            .expect("rtc product state lock")
+            .provider_routes
+            .insert(provider_route_id, route.clone());
+        self.persist_changes(RtcPersistenceChangeSet {
+            provider_routes: vec![route.clone()],
+            ..RtcPersistenceChangeSet::default()
+        })
+        .await
+        .map_err(backend_error_from_product)?;
         Ok(route)
     }
 
@@ -5655,6 +5768,25 @@ impl RtcBackendApiService for RtcProductService {
                 .await
         })
     }
+    fn activate_provider_account(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_account_id: String,
+    ) -> RtcBackendApiFuture<RtcProviderAccount> {
+        let service = self.clone();
+        Box::pin(async move {
+            service
+                .activate_provider_account_impl(
+                    tenant_id,
+                    organization_id,
+                    actor_id,
+                    provider_account_id,
+                )
+                .await
+        })
+    }
 
     fn list_provider_applications(
         &self,
@@ -5757,6 +5889,26 @@ impl RtcBackendApiService for RtcProductService {
                     actor_id,
                     provider_application_id,
                     request,
+                )
+                .await
+        })
+    }
+
+    fn activate_provider_application(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_application_id: String,
+    ) -> RtcBackendApiFuture<RtcProviderApplication> {
+        let service = self.clone();
+        Box::pin(async move {
+            service
+                .activate_provider_application_impl(
+                    tenant_id,
+                    organization_id,
+                    actor_id,
+                    provider_application_id,
                 )
                 .await
         })
@@ -5944,6 +6096,26 @@ impl RtcBackendApiService for RtcProductService {
                     actor_id,
                     provider_profile_id,
                     request,
+                )
+                .await
+        })
+    }
+
+    fn activate_provider_profile(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        actor_id: String,
+        provider_profile_id: String,
+    ) -> RtcBackendApiFuture<RtcProviderProfile> {
+        let service = self.clone();
+        Box::pin(async move {
+            service
+                .activate_provider_profile_impl(
+                    tenant_id,
+                    organization_id,
+                    actor_id,
+                    provider_profile_id,
                 )
                 .await
         })
@@ -6142,6 +6314,21 @@ impl RtcBackendApiService for RtcProductService {
                     provider_route_id,
                     request,
                 )
+                .await
+        })
+    }
+
+    fn activate_provider_route(
+        &self,
+        tenant_id: String,
+        organization_id: Option<String>,
+        _actor_id: String,
+        provider_route_id: String,
+    ) -> RtcBackendApiFuture<RtcProviderRoute> {
+        let service = self.clone();
+        Box::pin(async move {
+            service
+                .activate_provider_route_impl(tenant_id, organization_id, provider_route_id)
                 .await
         })
     }

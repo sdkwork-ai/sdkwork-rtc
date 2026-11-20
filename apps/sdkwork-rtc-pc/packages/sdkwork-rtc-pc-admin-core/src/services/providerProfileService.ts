@@ -87,6 +87,16 @@ export class ProviderProfileService {
     return response;
   }
 
+  async activate(id: string): Promise<ProviderProfile> {
+    const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.activate(
+      id,
+      { idempotencyKey: newIdempotencyKey() },
+    );
+    if (!response) {
+      throw new Error("Invalid response: missing data");
+    }
+    return response;
+  }
   async disable(id: string, reason?: string): Promise<ProviderProfile> {
     const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.disable(id, {
       reason,

@@ -211,6 +211,89 @@ pub async fn disable_provider_account(
     )?;
     Ok(api_item(result, &trace_id))
 }
+pub async fn activate_provider_account(
+    State(service): State<Arc<dyn RtcBackendApiService>>,
+    Extension(web_context): Extension<WebRequestContext>,
+    Extension(context): Extension<AppContext>,
+    Path(provider_account_id): Path<String>,
+) -> Result<Response, RtcBackendHandlerError> {
+    let trace_id = resolved_trace_id(&web_context);
+    let result = map_handler_error(
+        &trace_id,
+        service
+            .activate_provider_account(
+                context.tenant_id,
+                context.organization_id,
+                context.actor_id,
+                provider_account_id,
+            )
+            .await,
+    )?;
+    Ok(api_item(result, &trace_id))
+}
+
+pub async fn activate_provider_application(
+    State(service): State<Arc<dyn RtcBackendApiService>>,
+    Extension(web_context): Extension<WebRequestContext>,
+    Extension(context): Extension<AppContext>,
+    Path(provider_application_id): Path<String>,
+) -> Result<Response, RtcBackendHandlerError> {
+    let trace_id = resolved_trace_id(&web_context);
+    let result = map_handler_error(
+        &trace_id,
+        service
+            .activate_provider_application(
+                context.tenant_id,
+                context.organization_id,
+                context.actor_id,
+                provider_application_id,
+            )
+            .await,
+    )?;
+    Ok(api_item(result, &trace_id))
+}
+
+pub async fn activate_provider_profile(
+    State(service): State<Arc<dyn RtcBackendApiService>>,
+    Extension(web_context): Extension<WebRequestContext>,
+    Extension(context): Extension<AppContext>,
+    Path(provider_profile_id): Path<String>,
+) -> Result<Response, RtcBackendHandlerError> {
+    let trace_id = resolved_trace_id(&web_context);
+    let result = map_handler_error(
+        &trace_id,
+        service
+            .activate_provider_profile(
+                context.tenant_id,
+                context.organization_id,
+                context.actor_id,
+                provider_profile_id,
+            )
+            .await,
+    )?;
+    Ok(api_item(result, &trace_id))
+}
+
+pub async fn activate_provider_route(
+    State(service): State<Arc<dyn RtcBackendApiService>>,
+    Extension(web_context): Extension<WebRequestContext>,
+    Extension(context): Extension<AppContext>,
+    Path(provider_route_id): Path<String>,
+) -> Result<Response, RtcBackendHandlerError> {
+    let trace_id = resolved_trace_id(&web_context);
+    let result = map_handler_error(
+        &trace_id,
+        service
+            .activate_provider_route(
+                context.tenant_id,
+                context.organization_id,
+                context.actor_id,
+                provider_route_id,
+            )
+            .await,
+    )?;
+    Ok(api_item(result, &trace_id))
+}
 
 pub async fn list_provider_applications(
     State(service): State<Arc<dyn RtcBackendApiService>>,

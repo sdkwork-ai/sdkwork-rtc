@@ -627,6 +627,10 @@ export function RtcAdminCenterWorkspace({
             <ProviderAccountList
               accounts={data}
               onSelect={() => undefined}
+              onActivate={async (account) => {
+                await services.accounts.activate(account.id);
+                await refresh();
+              }}
               onDisable={async (account) => {
                 await services.accounts.list({});
                 await refresh();
@@ -655,6 +659,10 @@ export function RtcAdminCenterWorkspace({
               onSelect={(profile) => {
                 setSelectedProfile(profile);
                 navigateTo("#/admin/providers");
+              }}
+              onActivate={async (profile) => {
+                await services.profiles.activate(profile.id);
+                await refresh();
               }}
               onDisable={async (profile) => {
                 await services.profiles.disable(profile.id);

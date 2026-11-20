@@ -16,5 +16,6 @@ export const adminRtcAccountsEn = {
   "admin.rtc.accounts.col.actions": "Actions",
   "admin.rtc.accounts.edit": "Edit",
   "admin.rtc.accounts.disable": "Disable",
+  "admin.rtc.accounts.activate": "Disable",
   "admin.rtc.accounts.form.title": "{{name}} Account",
 } as const;

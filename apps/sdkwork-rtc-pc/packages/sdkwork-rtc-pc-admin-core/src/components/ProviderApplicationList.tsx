@@ -5,10 +5,11 @@ import type { ProviderApplication } from "../types/providerApplication";
 interface Props {
   applications: ProviderApplication[];
   onSelect: (app: ProviderApplication) => void;
+  onActivate: (app: ProviderApplication) => void;
   onDisable: (app: ProviderApplication) => void;
 }
 
-export function ProviderApplicationList({ applications, onSelect, onDisable }: Props) {
+export function ProviderApplicationList({ applications, onSelect, onActivate, onDisable }: Props) {
   const { t } = useTranslation();
   return (
     <div className="provider-application-list">
@@ -38,6 +39,11 @@ export function ProviderApplicationList({ applications, onSelect, onDisable }: P
                 {app.status === "active" && (
                   <button onClick={() => onDisable(app)}>
                     {t("admin.rtc.applications.disable", "Disable")}
+                  </button>
+                )}
+                {app.status === "disabled" && (
+                  <button onClick={() => onActivate(app)}>
+                    {t("admin.rtc.applications.activate", "Activate")}
                   </button>
                 )}
               </td>

@@ -15,6 +15,7 @@ export const adminRtcApplicationsEn = {
   "admin.rtc.applications.col.actions": "Actions",
   "admin.rtc.applications.edit": "Edit",
   "admin.rtc.applications.disable": "Disable",
+  "admin.rtc.applications.activate": "Disable",
   "admin.rtc.applications.form.title": "{{name}} Application",
   "admin.rtc.applications.failedLoad": "Failed to load applications",
   "admin.rtc.applications.failedDisable": "Failed to disable application",

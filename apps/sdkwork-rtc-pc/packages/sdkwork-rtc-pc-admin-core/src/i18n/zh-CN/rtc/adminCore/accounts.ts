@@ -16,5 +16,6 @@ export const adminRtcAccountsZh = {
   "admin.rtc.accounts.col.actions": "操作",
   "admin.rtc.accounts.edit": "编辑",
   "admin.rtc.accounts.disable": "停用",
+  "admin.rtc.accounts.activate": "停用",
   "admin.rtc.accounts.form.title": "{{name}} 账户",
 } as const;

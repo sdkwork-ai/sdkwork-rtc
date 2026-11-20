@@ -21,12 +21,16 @@ pub const RTC_BACKEND_PROVIDER_ACCOUNT_PATH: &str =
     "/backend/v3/api/rtc/provider_accounts/{providerAccountId}";
 pub const RTC_BACKEND_PROVIDER_ACCOUNT_DISABLE_PATH: &str =
     "/backend/v3/api/rtc/provider_accounts/{providerAccountId}/disable";
+pub const RTC_BACKEND_PROVIDER_ACCOUNT_ACTIVATE_PATH: &str =
+    "/backend/v3/api/rtc/provider_accounts/{providerAccountId}/activate";
 pub const RTC_BACKEND_PROVIDER_ACCOUNT_APPLICATIONS_PATH: &str =
     "/backend/v3/api/rtc/provider_accounts/{providerAccountId}/applications";
 pub const RTC_BACKEND_PROVIDER_APPLICATION_PATH: &str =
     "/backend/v3/api/rtc/provider_applications/{providerApplicationId}";
 pub const RTC_BACKEND_PROVIDER_APPLICATION_DISABLE_PATH: &str =
     "/backend/v3/api/rtc/provider_applications/{providerApplicationId}/disable";
+pub const RTC_BACKEND_PROVIDER_APPLICATION_ACTIVATE_PATH: &str =
+    "/backend/v3/api/rtc/provider_applications/{providerApplicationId}/activate";
 pub const RTC_BACKEND_PROVIDER_APPLICATION_CREDENTIALS_PATH: &str =
     "/backend/v3/api/rtc/provider_applications/{providerApplicationId}/credentials";
 pub const RTC_BACKEND_PROVIDER_CREDENTIAL_PATH: &str =
@@ -38,6 +42,8 @@ pub const RTC_BACKEND_PROVIDER_PROFILE_PATH: &str =
     "/backend/v3/api/rtc/provider_profiles/{providerProfileId}";
 pub const RTC_BACKEND_PROVIDER_PROFILE_DISABLE_PATH: &str =
     "/backend/v3/api/rtc/provider_profiles/{providerProfileId}/disable";
+pub const RTC_BACKEND_PROVIDER_PROFILE_ACTIVATE_PATH: &str =
+    "/backend/v3/api/rtc/provider_profiles/{providerProfileId}/activate";
 pub const RTC_BACKEND_PROVIDER_PROFILE_VERIFY_PATH: &str =
     "/backend/v3/api/rtc/provider_profiles/{providerProfileId}/verify";
 pub const RTC_BACKEND_PROVIDER_ROUTES_PATH: &str = "/backend/v3/api/rtc/provider_routes";
@@ -45,6 +51,8 @@ pub const RTC_BACKEND_PROVIDER_ROUTE_PATH: &str =
     "/backend/v3/api/rtc/provider_routes/{providerRouteId}";
 pub const RTC_BACKEND_PROVIDER_ROUTE_DISABLE_PATH: &str =
     "/backend/v3/api/rtc/provider_routes/{providerRouteId}/disable";
+pub const RTC_BACKEND_PROVIDER_ROUTE_ACTIVATE_PATH: &str =
+    "/backend/v3/api/rtc/provider_routes/{providerRouteId}/activate";
 pub const RTC_BACKEND_MEDIA_SESSIONS_PATH: &str = "/backend/v3/api/rtc/media_sessions";
 pub const RTC_BACKEND_MEDIA_SESSION_PATH: &str =
     "/backend/v3/api/rtc/media_sessions/{mediaSessionId}";
@@ -141,6 +149,14 @@ pub const RTC_BACKEND_ROUTES: &[RtcBackendRoute] = &[
         permission: "rtc.provider_accounts.write",
     },
     RtcBackendRoute {
+        method: "POST",
+        path: RTC_BACKEND_PROVIDER_ACCOUNT_ACTIVATE_PATH,
+        tag: "rtcProviderAccounts",
+        operation_id: "rtc.providerAccounts.activate",
+        owner: RTC_OWNER,
+        permission: "rtc.provider_accounts.write",
+    },
+    RtcBackendRoute {
         method: "GET",
         path: RTC_BACKEND_PROVIDER_ACCOUNT_APPLICATIONS_PATH,
         tag: "rtcProviderApplications",
@@ -177,6 +193,14 @@ pub const RTC_BACKEND_ROUTES: &[RtcBackendRoute] = &[
         path: RTC_BACKEND_PROVIDER_APPLICATION_DISABLE_PATH,
         tag: "rtcProviderApplications",
         operation_id: "rtc.providerApplications.disable",
+        owner: RTC_OWNER,
+        permission: "rtc.provider_applications.write",
+    },
+    RtcBackendRoute {
+        method: "POST",
+        path: RTC_BACKEND_PROVIDER_APPLICATION_ACTIVATE_PATH,
+        tag: "rtcProviderApplications",
+        operation_id: "rtc.providerApplications.activate",
         owner: RTC_OWNER,
         permission: "rtc.provider_applications.write",
     },
@@ -262,6 +286,14 @@ pub const RTC_BACKEND_ROUTES: &[RtcBackendRoute] = &[
     },
     RtcBackendRoute {
         method: "POST",
+        path: RTC_BACKEND_PROVIDER_PROFILE_ACTIVATE_PATH,
+        tag: "rtcProviderProfiles",
+        operation_id: "rtc.providerProfiles.activate",
+        owner: RTC_OWNER,
+        permission: "rtc.provider_profiles.write",
+    },
+    RtcBackendRoute {
+        method: "POST",
         path: RTC_BACKEND_PROVIDER_PROFILE_VERIFY_PATH,
         tag: "rtcProviderProfiles",
         operation_id: "rtc.providerProfiles.verify",
@@ -305,6 +337,14 @@ pub const RTC_BACKEND_ROUTES: &[RtcBackendRoute] = &[
         path: RTC_BACKEND_PROVIDER_ROUTE_DISABLE_PATH,
         tag: "rtcProviderRoutes",
         operation_id: "rtc.providerRoutes.disable",
+        owner: RTC_OWNER,
+        permission: "rtc.provider_routes.write",
+    },
+    RtcBackendRoute {
+        method: "POST",
+        path: RTC_BACKEND_PROVIDER_ROUTE_ACTIVATE_PATH,
+        tag: "rtcProviderRoutes",
+        operation_id: "rtc.providerRoutes.activate",
         owner: RTC_OWNER,
         permission: "rtc.provider_routes.write",
     },

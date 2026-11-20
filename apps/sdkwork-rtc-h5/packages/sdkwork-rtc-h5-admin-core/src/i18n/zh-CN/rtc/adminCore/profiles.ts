@@ -19,5 +19,6 @@ export const adminRtcProfilesZh = {
   "admin.rtc.profiles.edit": "编辑",
   "admin.rtc.profiles.verify": "验证",
   "admin.rtc.profiles.disable": "停用",
+  "admin.rtc.profiles.activate": "停用",
   "admin.rtc.profiles.form.title": "{{name}} 配置",
 } as const;

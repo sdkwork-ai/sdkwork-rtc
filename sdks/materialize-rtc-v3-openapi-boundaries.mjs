@@ -370,6 +370,7 @@ function buildOperation(source, route) {
   // Create operations answer HTTP 201 with the item envelope (API_SPEC
   // section 15.4); every other success surface stays 200.
   const pattern = inferOpenApiOperationPattern(route.path, method, operation);
+  const requestSchemaName = operationRequestSchemaName(route);
   const successStatus = pattern?.kind === "create" ? 201 : 200;
   operation.responses = {
     [successStatus]: jsonResponse("Success", operationSuccessResponseSchema(route)),
@@ -414,7 +415,7 @@ function buildOperation(source, route) {
       required: method !== "patch",
       content: {
         "application/json": {
-          schema: { $ref: `#/components/schemas/${operationRequestSchemaName(route)}` },
+          schema: { $ref: `#/components/schemas/${requestSchemaName}` },
         },
       },
     };
@@ -2193,6 +2194,12 @@ function envelope(dataSchema) {
 
 function operationRequestSchemaName(route) {
   switch (route.operationId) {
+    // Activation commands carry no payload.
+    case "rtc.providerAccounts.activate":
+    case "rtc.providerApplications.activate":
+    case "rtc.providerProfiles.activate":
+    case "rtc.providerRoutes.activate":
+      return null;
     case "rtc.mediaSessions.create":
       return "RtcCreateMediaSessionRequest";
     case "rtc.mediaSessions.close":
@@ -2265,6 +2272,7 @@ function operationResponseSchemaName(route) {
     case "rtc.providerAccounts.retrieve":
     case "rtc.providerAccounts.update":
     case "rtc.providerAccounts.disable":
+    case "rtc.providerAccounts.activate":
       return "RtcProviderAccountResponse";
     case "rtc.providerAccounts.applications.list":
       return "RtcProviderApplicationListResponse";
@@ -2272,6 +2280,7 @@ function operationResponseSchemaName(route) {
     case "rtc.providerApplications.retrieve":
     case "rtc.providerApplications.update":
     case "rtc.providerApplications.disable":
+    case "rtc.providerApplications.activate":
       return "RtcProviderApplicationResponse";
     case "rtc.providerApplications.credentials.list":
       return "RtcProviderCredentialListResponse";
@@ -2286,6 +2295,7 @@ function operationResponseSchemaName(route) {
     case "rtc.providerProfiles.retrieve":
     case "rtc.providerProfiles.update":
     case "rtc.providerProfiles.disable":
+    case "rtc.providerProfiles.activate":
     case "rtc.providerProfiles.capabilities.update":
       return "RtcProviderProfileResponse";
     case "rtc.providerProfiles.verify":
@@ -2296,6 +2306,7 @@ function operationResponseSchemaName(route) {
     case "rtc.providerRoutes.retrieve":
     case "rtc.providerRoutes.update":
     case "rtc.providerRoutes.disable":
+    case "rtc.providerRoutes.activate":
       return "RtcProviderRouteResponse";
     case "rtc.qualitySamples.list":
       return "RtcQualitySampleListResponse";

@@ -5,11 +5,18 @@ import type { ProviderProfile } from "../types/providerProfile";
 interface Props {
   profiles: ProviderProfile[];
   onSelect: (profile: ProviderProfile) => void;
+  onActivate: (profile: ProviderProfile) => void;
   onDisable: (profile: ProviderProfile) => void;
   onVerify: (profile: ProviderProfile) => void;
 }
 
-export function ProviderProfileList({ profiles, onSelect, onDisable, onVerify }: Props) {
+export function ProviderProfileList({
+  profiles,
+  onSelect,
+  onActivate,
+  onDisable,
+  onVerify,
+}: Props) {
   const { t } = useTranslation();
   return (
     <div className="provider-profile-list">
@@ -50,6 +57,11 @@ export function ProviderProfileList({ profiles, onSelect, onDisable, onVerify }:
                 {profile.status === "active" && (
                   <button onClick={() => onDisable(profile)}>
                     {t("admin.rtc.profiles.disable", "Disable")}
+                  </button>
+                )}
+                {profile.status === "disabled" && (
+                  <button onClick={() => onActivate(profile)}>
+                    {t("admin.rtc.profiles.activate", "Activate")}
                   </button>
                 )}
               </td>
