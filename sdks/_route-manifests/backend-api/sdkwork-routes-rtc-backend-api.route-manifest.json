@@ -701,7 +701,7 @@
         "response": "RtcProviderCredentialResponse",
         "problem": "ProblemDetail"
       },
-      "rateLimitTier": "openApiDefault",
+      "rateLimitTier": "authCritical",
       "idempotent": true,
       "ownership": {
         "owner": "sdkwork-rtc",
@@ -737,7 +737,7 @@
         "response": "RtcProviderCredentialResponse",
         "problem": "ProblemDetail"
       },
-      "rateLimitTier": "openApiDefault",
+      "rateLimitTier": "authCritical",
       "idempotent": true,
       "ownership": {
         "owner": "sdkwork-rtc",
@@ -995,7 +995,7 @@
     {
       "method": "PUT",
       "path": "/backend/v3/api/rtc/provider_profiles/{providerProfileId}/capabilities",
-      "operationId": "rtc.providerProfiles.capabilities.configure",
+      "operationId": "rtc.providerProfiles.capabilities.update",
       "tags": [
         "rtcProviderProfiles"
       ],
@@ -1010,7 +1010,7 @@
       },
       "handler": {
         "module": "crate::handlers",
-        "name": "providerProfiles_capabilities_configure"
+        "name": "providerProfiles_capabilities_update"
       },
       "schemas": {
         "request": "RtcOperationCommand",
@@ -1451,7 +1451,7 @@
     {
       "method": "POST",
       "path": "/backend/v3/api/rtc/provider_webhooks/{provider}/events",
-      "operationId": "rtc.providerWebhooks.events.receive",
+      "operationId": "rtc.providerWebhooks.events.create",
       "tags": [
         "rtcProviderWebhooks"
       ],
@@ -1467,7 +1467,7 @@
       },
       "handler": {
         "module": "crate::handlers",
-        "name": "providerWebhooks_events_receive"
+        "name": "providerWebhooks_events_create"
       },
       "schemas": {
         "request": "RtcProviderWebhookReceiveRequest",

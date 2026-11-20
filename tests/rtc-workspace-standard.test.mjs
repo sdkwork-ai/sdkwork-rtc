@@ -566,7 +566,7 @@ test("sdkwork-rtc provider webhook ingress declares framework rate-limit tier", 
     read("sdks/_route-manifests/backend-api/sdkwork-routes-rtc-backend-api.route-manifest.json"),
   );
   const webhookRoute = backendManifest.routes.find(
-    (route) => route.operationId === "rtc.providerWebhooks.events.receive",
+    (route) => route.operationId === "rtc.providerWebhooks.events.create",
   );
   assert.ok(webhookRoute, "backend manifest must declare provider webhook receive route");
   assert.equal(webhookRoute.rateLimitTier, "openApiDefault");

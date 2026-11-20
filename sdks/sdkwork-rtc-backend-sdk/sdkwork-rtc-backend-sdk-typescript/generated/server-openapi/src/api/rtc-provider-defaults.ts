@@ -5,7 +5,7 @@ import type { RtcOperationCommand } from '../types';
 
 
 export interface RtcProviderDefaultsRtcProviderDefaultsCreateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcProviderDefaultsRtcProviderDefaultsApi {
@@ -17,10 +17,10 @@ export class RtcProviderDefaultsRtcProviderDefaultsApi {
 
 
 /** Rtc provider Defaults create. */
-  async create(body: RtcOperationCommand, params?: RtcProviderDefaultsRtcProviderDefaultsCreateParams, requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
+  async create(body: RtcOperationCommand, params: RtcProviderDefaultsRtcProviderDefaultsCreateParams, requestOptions?: ApiRequestOptions): Promise<Record<string, unknown>> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

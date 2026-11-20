@@ -1,6 +1,7 @@
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 
 import type { ProviderProfile, ProviderProfileCommand } from "../types/providerProfile";
+import { newIdempotencyKey } from "../sdk/index.js";
 import type {
   ProviderProfileVerifyResult,
   ProviderVerifyMode,
@@ -64,6 +65,7 @@ export class ProviderProfileService {
       command as Parameters<
         typeof this.client.rtcProviderProfiles.rtc.providerProfiles.create
       >[0],
+      { idempotencyKey: newIdempotencyKey() },
     );
     if (!response) {
       throw new Error("Invalid response: missing provider profile data");
@@ -74,9 +76,10 @@ export class ProviderProfileService {
   async update(id: string, command: ProviderProfileCommand): Promise<ProviderProfile> {
     const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.update(
       id,
+      { idempotencyKey: newIdempotencyKey() },
       command as Parameters<
         typeof this.client.rtcProviderProfiles.rtc.providerProfiles.update
-      >[1],
+      >[2],
     );
     if (!response) {
       throw new Error("Invalid response: missing provider profile data");
@@ -87,7 +90,7 @@ export class ProviderProfileService {
   async disable(id: string, reason?: string): Promise<ProviderProfile> {
     const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.disable(id, {
       reason,
-    });
+    }, { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider profile data");
     }
@@ -102,7 +105,7 @@ export class ProviderProfileService {
     const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.verify(id, {
       queryKind,
       timeoutMs,
-    });
+    }, { idempotencyKey: newIdempotencyKey() });
     return response as ProviderProfileVerifyResult;
   }
 
@@ -111,12 +114,13 @@ export class ProviderProfileService {
     enabledCapabilities: string[],
     disabledCapabilities: string[],
   ): Promise<ProviderProfile> {
-    const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.capabilities.configure(
+    const response = await this.client.rtcProviderProfiles.rtc.providerProfiles.capabilities.update(
       id,
       {
         enabledCapabilities,
         disabledCapabilities,
       },
+      { idempotencyKey: newIdempotencyKey() },
     );
     return response;
   }

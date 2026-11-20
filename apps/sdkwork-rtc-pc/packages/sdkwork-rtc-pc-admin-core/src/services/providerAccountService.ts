@@ -1,6 +1,7 @@
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 
 import type { ProviderAccount, ProviderAccountCommand } from "../types/providerAccount";
+import { newIdempotencyKey } from "../sdk/index.js";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 interface ListResponse {
@@ -60,6 +61,7 @@ export class ProviderAccountService {
       command as Parameters<
         typeof this.client.rtcProviderAccounts.rtc.providerAccounts.create
       >[0],
+      { idempotencyKey: newIdempotencyKey() },
     );
     if (!response) {
       throw new Error("Invalid response: missing provider account data");
@@ -70,9 +72,10 @@ export class ProviderAccountService {
   async update(id: string, command: ProviderAccountCommand): Promise<ProviderAccount> {
     const response = await this.client.rtcProviderAccounts.rtc.providerAccounts.update(
       id,
+      { idempotencyKey: newIdempotencyKey() },
       command as Parameters<
         typeof this.client.rtcProviderAccounts.rtc.providerAccounts.update
-      >[1],
+      >[2],
     );
     if (!response) {
       throw new Error("Invalid response: missing provider account data");
@@ -83,7 +86,7 @@ export class ProviderAccountService {
   async disable(id: string, reason?: string): Promise<ProviderAccount> {
     const response = await this.client.rtcProviderAccounts.rtc.providerAccounts.disable(id, {
       reason,
-    });
+    }, { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider account data");
     }

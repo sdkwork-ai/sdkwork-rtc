@@ -4,8 +4,8 @@ import type { ApiRequestOptions, HttpClient } from '../http/client';
 import type { RtcOperationCommand, RtcParticipantCredential } from '../types';
 
 
-export interface RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsIssueParams {
-  idempotencyKey?: string;
+export interface RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsCreateParams {
+  idempotencyKey: string;
 }
 
 export class RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsApi {
@@ -16,11 +16,11 @@ export class RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsApi 
   }
 
 
-/** Rtc media Sessions participant Credentials issue. */
-  async issue(mediaSessionId: string, participantId: string, body: RtcOperationCommand, params?: RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsIssueParams, requestOptions?: ApiRequestOptions): Promise<RtcParticipantCredential> {
+/** Rtc media Sessions participant Credentials create. */
+  async create(mediaSessionId: string, participantId: string, body: RtcOperationCommand, params: RtcParticipantCredentialsRtcMediaSessionsParticipantCredentialsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcParticipantCredential> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

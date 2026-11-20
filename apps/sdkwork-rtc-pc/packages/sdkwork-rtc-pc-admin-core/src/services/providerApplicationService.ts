@@ -4,6 +4,7 @@ import type {
   ProviderApplication,
   ProviderApplicationCommand,
 } from "../types/providerApplication";
+import { newIdempotencyKey } from "../sdk/index.js";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 interface ListResponse {
@@ -70,6 +71,7 @@ export class ProviderApplicationService {
         command as Parameters<
           typeof this.client.rtcProviderApplications.rtc.providerAccounts.applications.create
         >[1],
+        { idempotencyKey: newIdempotencyKey() },
       );
     if (!response) {
       throw new Error("Invalid response: missing provider application data");
@@ -81,9 +83,10 @@ export class ProviderApplicationService {
     const response =
       await this.client.rtcProviderApplications.rtc.providerApplications.update(
         id,
+        { idempotencyKey: newIdempotencyKey() },
         command as Parameters<
           typeof this.client.rtcProviderApplications.rtc.providerApplications.update
-        >[1],
+        >[2],
       );
     if (!response) {
       throw new Error("Invalid response: missing provider application data");
@@ -95,7 +98,7 @@ export class ProviderApplicationService {
     const response =
       await this.client.rtcProviderApplications.rtc.providerApplications.disable(id, {
         reason,
-      });
+      }, { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider application data");
     }

@@ -5,6 +5,7 @@ import type {
   MediaSessionListResponse,
   RtcMediaSession,
 } from "../types/mediaSession";
+import { newIdempotencyKey } from "../sdk/index.js";
 import type { RtcMediaSessionCompletionRecord } from "../types/completionRecord";
 import {
   resolveBackendRtcClient,
@@ -51,7 +52,7 @@ export class MediaSessionService {
   }
 
   async close(id: string): Promise<RtcMediaSession> {
-    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.close(id, {});
+    const response = await this.client.rtcMediaSessions.rtc.mediaSessions.close(id, {}, { idempotencyKey: newIdempotencyKey() });
     return response;
   }
 

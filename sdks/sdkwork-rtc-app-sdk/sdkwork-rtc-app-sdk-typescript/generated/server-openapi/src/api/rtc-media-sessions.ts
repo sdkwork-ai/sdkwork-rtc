@@ -30,7 +30,7 @@ export interface RtcMediaSessionsRtcMediaSessionsListParams {
 }
 
 export interface RtcMediaSessionsRtcMediaSessionsCreateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcMediaSessionsRtcMediaSessionsApi {
@@ -52,17 +52,17 @@ export class RtcMediaSessionsRtcMediaSessionsApi {
       { name: 'sort', value: params?.sort, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
-      { name: 'ownerUserId', value: params?.ownerUserId, style: 'form', explode: true, allowReserved: false },
-      { name: 'createdAfter', value: params?.createdAfter, style: 'form', explode: true, allowReserved: false },
+      { name: 'owner_user_id', value: params?.ownerUserId, style: 'form', explode: true, allowReserved: false },
+      { name: 'created_after', value: params?.createdAfter, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.request<{ items: RtcMediaSession[]; pageInfo: { mode: 'cursor'; nextCursor?: string | null; hasMore: boolean; }; }>(appendQueryString(appApiPath(`/rtc/media_sessions`), query), { ...(requestOptions?.signal !== undefined ? { signal: requestOptions.signal } : {}), ...(requestOptions?.timeout !== undefined ? { timeout: requestOptions.timeout } : {}), method: 'GET' as any, sdkworkUnwrapKind: 'page' });
   }
 
 /** Rtc media Sessions create. */
-  async create(body: RtcCreateMediaSessionRequest, params?: RtcMediaSessionsRtcMediaSessionsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcMediaSession> {
+  async create(body: RtcCreateMediaSessionRequest, params: RtcMediaSessionsRtcMediaSessionsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcMediaSession> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

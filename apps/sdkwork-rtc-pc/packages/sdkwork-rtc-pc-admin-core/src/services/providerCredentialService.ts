@@ -1,6 +1,7 @@
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 
 import type { ProviderCredential, ProviderCredentialCommand } from "../types/providerCredential";
+import { newIdempotencyKey } from "../sdk/index.js";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 interface ListResponse {
@@ -67,6 +68,7 @@ export class ProviderCredentialService {
         command as Parameters<
           typeof this.client.rtcProviderCredentials.rtc.providerApplications.credentials.create
         >[1],
+        { idempotencyKey: newIdempotencyKey() },
       );
     if (!response) {
       throw new Error("Invalid response: missing provider credential data");
@@ -78,9 +80,10 @@ export class ProviderCredentialService {
     const response =
       await this.client.rtcProviderCredentials.rtc.providerCredentials.update(
         id,
+        { idempotencyKey: newIdempotencyKey() },
         command as Parameters<
           typeof this.client.rtcProviderCredentials.rtc.providerCredentials.update
-        >[1],
+        >[2],
       );
     if (!response) {
       throw new Error("Invalid response: missing provider credential data");
@@ -91,7 +94,7 @@ export class ProviderCredentialService {
   async revoke(id: string, reason?: string): Promise<ProviderCredential> {
     const response = await this.client.rtcProviderCredentials.rtc.providerCredentials.revoke(id, {
       reason,
-    });
+    }, { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider credential data");
     }

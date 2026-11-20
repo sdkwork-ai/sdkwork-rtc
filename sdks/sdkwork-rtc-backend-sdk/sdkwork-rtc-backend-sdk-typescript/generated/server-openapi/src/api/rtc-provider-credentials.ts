@@ -5,11 +5,11 @@ import type { RtcProviderCredential, RtcProviderCredentialCommand, RtcProviderCr
 
 
 export interface RtcProviderCredentialsRtcProviderCredentialsUpdateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export interface RtcProviderCredentialsRtcProviderCredentialsRevokeParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcProviderCredentialsRtcProviderCredentialsApi {
@@ -26,10 +26,10 @@ export class RtcProviderCredentialsRtcProviderCredentialsApi {
   }
 
 /** Rtc provider Credentials update. */
-  async update(providerCredentialId: string, body?: RtcProviderCredentialCommand, params?: RtcProviderCredentialsRtcProviderCredentialsUpdateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderCredential> {
+  async update(providerCredentialId: string, params: RtcProviderCredentialsRtcProviderCredentialsUpdateParams, body?: RtcProviderCredentialCommand, requestOptions?: ApiRequestOptions): Promise<RtcProviderCredential> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -37,10 +37,10 @@ export class RtcProviderCredentialsRtcProviderCredentialsApi {
   }
 
 /** Rtc provider Credentials revoke. */
-  async revoke(providerCredentialId: string, body: RtcProviderCredentialRevokeRequest, params?: RtcProviderCredentialsRtcProviderCredentialsRevokeParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderCredential> {
+  async revoke(providerCredentialId: string, body: RtcProviderCredentialRevokeRequest, params: RtcProviderCredentialsRtcProviderCredentialsRevokeParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderCredential> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -57,7 +57,7 @@ export interface RtcProviderCredentialsRtcProviderApplicationsCredentialsListPar
 }
 
 export interface RtcProviderCredentialsRtcProviderApplicationsCredentialsCreateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcProviderCredentialsRtcProviderApplicationsCredentialsApi {
@@ -81,10 +81,10 @@ export class RtcProviderCredentialsRtcProviderApplicationsCredentialsApi {
   }
 
 /** Rtc provider Applications credentials create. */
-  async create(providerApplicationId: string, body: RtcProviderCredentialCommand, params?: RtcProviderCredentialsRtcProviderApplicationsCredentialsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderCredential> {
+  async create(providerApplicationId: string, body: RtcProviderCredentialCommand, params: RtcProviderCredentialsRtcProviderApplicationsCredentialsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderCredential> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

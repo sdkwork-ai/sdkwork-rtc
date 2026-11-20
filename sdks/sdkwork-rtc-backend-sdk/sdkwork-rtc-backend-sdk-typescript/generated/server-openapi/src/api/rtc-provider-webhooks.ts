@@ -4,8 +4,8 @@ import type { ApiRequestOptions, HttpClient } from '../http/client';
 import type { RtcProviderWebhookEvent, RtcProviderWebhookReceiveRequest } from '../types';
 
 
-export interface RtcProviderWebhooksRtcProviderWebhooksEventsReceiveParams {
-  idempotencyKey?: string;
+export interface RtcProviderWebhooksRtcProviderWebhooksEventsCreateParams {
+  idempotencyKey: string;
 }
 
 export interface RtcProviderWebhooksRtcProviderWebhooksEventsListParams {
@@ -24,11 +24,11 @@ export class RtcProviderWebhooksRtcProviderWebhooksEventsApi {
   }
 
 
-/** Rtc provider Webhooks events receive. */
-  async receive(provider: string, body: RtcProviderWebhookReceiveRequest, params?: RtcProviderWebhooksRtcProviderWebhooksEventsReceiveParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderWebhookEvent> {
+/** Rtc provider Webhooks events create. */
+  async create(provider: string, body: RtcProviderWebhookReceiveRequest, params: RtcProviderWebhooksRtcProviderWebhooksEventsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderWebhookEvent> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

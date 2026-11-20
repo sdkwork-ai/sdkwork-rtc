@@ -117,7 +117,7 @@ export class ParticipantCredentialService {
     options?: ParticipantCredentialIssueOptions,
   ): Promise<string> {
     const response =
-      await this.client.rtcParticipantCredentials.rtc.mediaSessions.participantCredentials.issue(
+      await this.client.rtcParticipantCredentials.rtc.mediaSessions.participantCredentials.create(
         mediaSessionId,
         participantId,
         { reason },

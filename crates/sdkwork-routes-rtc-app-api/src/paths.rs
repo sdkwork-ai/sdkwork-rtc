@@ -86,7 +86,7 @@ pub const RTC_APP_ROUTES: &[RtcAppRoute] = &[
         method: "POST",
         path: RTC_APP_PARTICIPANT_CREDENTIAL_PATH,
         tag: "rtcParticipantCredentials",
-        operation_id: "rtc.mediaSessions.participantCredentials.issue",
+        operation_id: "rtc.mediaSessions.participantCredentials.create",
         owner: RTC_OWNER,
         permission: "rtc.media_sessions.credentials.issue",
     },

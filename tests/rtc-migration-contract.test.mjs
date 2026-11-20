@@ -2025,7 +2025,7 @@ test("sdkwork-rtc app and backend APIs cover room, credential, artifact, webhook
   );
   assert.ok(
     appOperations.some(
-      (operation) => operation.operationId === "rtc.mediaSessions.participantCredentials.issue",
+      (operation) => operation.operationId === "rtc.mediaSessions.participantCredentials.create",
     ),
   );
   for (const requiredOperationId of [
@@ -2060,7 +2060,7 @@ test("sdkwork-rtc app and backend APIs cover room, credential, artifact, webhook
   }
   assert.ok(
     backendOperations.some(
-      (operation) => operation.operationId === "rtc.providerWebhooks.events.receive",
+      (operation) => operation.operationId === "rtc.providerWebhooks.events.create",
     ),
   );
   assert.ok(
@@ -2733,7 +2733,7 @@ test("sdkwork-rtc app and backend APIs expose typed operation DTOs for generated
     ),
   );
   const receiveWebhookRoute = backendRouteManifest.routes.find(
-    (route) => route.operationId === "rtc.providerWebhooks.events.receive",
+    (route) => route.operationId === "rtc.providerWebhooks.events.create",
   );
   assert.equal(receiveWebhookRoute?.auth?.mode, "public");
   assert.equal(receiveWebhookRoute?.auth?.providerWebhookSignature, true);

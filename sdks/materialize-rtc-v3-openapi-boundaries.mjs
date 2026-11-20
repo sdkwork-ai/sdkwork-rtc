@@ -3,6 +3,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  inferOpenApiOperationPattern,
+} from "../../sdkwork-specs/tools/lib/api-operation-patterns.mjs";
+import {
   sdkWorkEnvelopeComponentSchemas,
   typedSdkWorkResourceResponse,
 } from "../../sdkwork-specs/tools/lib/openapi-envelope-schemas.mjs";
@@ -60,7 +63,7 @@ const routeSources = [
 ];
 
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
-const PROVIDER_WEBHOOK_RECEIVE_OPERATION_ID = "rtc.providerWebhooks.events.receive";
+const PROVIDER_WEBHOOK_INGRESS_OPERATION_ID = "rtc.providerWebhooks.events.create";
 const BOUNDED_CATALOG_LIST_OPERATIONS = new Set([
   "rtc.providerPlugins.list",
   "rtc.providerSchemas.list",
@@ -363,27 +366,31 @@ function buildOperation(source, route) {
     summary: `${toTitle(route.operationId)}.`,
     operationId: route.operationId,
     parameters: extractPathParameters(route.path),
-    responses: {
-      200: jsonResponse("Success", operationSuccessResponseSchema(route)),
-      400: problemResponse("Bad request"),
-      401: problemResponse("Unauthorized"),
-      403: problemResponse("Forbidden"),
-      404: problemResponse("Not found"),
-      409: problemResponse("Conflict"),
-      500: problemResponse("Internal server error"),
-    },
-    security: operationAuth.security,
-    "x-sdkwork-owner": source.sdkOwner,
-    "x-sdkwork-api-authority": source.authorityName,
-    "x-sdkwork-source-route-crate": source.packageName,
-    "x-sdkwork-domain": source.domain,
-    "x-sdkwork-resource": route.operationId.split(".").slice(0, -1).join("."),
-    "x-sdkwork-request-context": "WebRequestContext",
-    "x-sdkwork-api-surface": source.surface,
-    "x-sdkwork-server-request-id": true,
-    "x-sdkwork-permission": route.permission,
-    "x-sdkwork-auth-mode": operationAuth.authMode,
   };
+  // Create operations answer HTTP 201 with the item envelope (API_SPEC
+  // section 15.4); every other success surface stays 200.
+  const pattern = inferOpenApiOperationPattern(route.path, method, operation);
+  const successStatus = pattern?.kind === "create" ? 201 : 200;
+  operation.responses = {
+    [successStatus]: jsonResponse("Success", operationSuccessResponseSchema(route)),
+    400: problemResponse("Bad request"),
+    401: problemResponse("Unauthorized"),
+    403: problemResponse("Forbidden"),
+    404: problemResponse("Not found"),
+    409: problemResponse("Conflict"),
+    500: problemResponse("Internal server error"),
+  };
+  operation.security = operationAuth.security;
+  operation["x-sdkwork-owner"] = source.sdkOwner;
+  operation["x-sdkwork-api-authority"] = source.authorityName;
+  operation["x-sdkwork-source-route-crate"] = source.packageName;
+  operation["x-sdkwork-domain"] = source.domain;
+  operation["x-sdkwork-resource"] = route.operationId.split(".").slice(0, -1).join(".");
+  operation["x-sdkwork-request-context"] = "WebRequestContext";
+  operation["x-sdkwork-api-surface"] = source.surface;
+  operation["x-sdkwork-server-request-id"] = true;
+  operation["x-sdkwork-permission"] = route.permission;
+  operation["x-sdkwork-auth-mode"] = operationAuth.authMode;
 
   if (operationAuth.providerWebhookSignature) {
     operation["x-sdkwork-provider-webhook-signature"] = true;
@@ -435,8 +442,8 @@ function operationListFilterParameters(route) {
           type: "string",
           enum: ["active", "archived", "disabled"],
         }),
-        queryParameter("ownerUserId", { type: "string" }),
-        queryParameter("createdAfter", { type: "string", format: "date-time" }),
+        queryParameter("owner_user_id", { type: "string" }),
+        queryParameter("created_after", { type: "string", format: "date-time" }),
       ];
     case "rtc.providerAccounts.list":
       return [
@@ -470,8 +477,8 @@ function operationListFilterParameters(route) {
           type: "string",
           enum: ["preparing", "active", "closing", "ended", "failed"],
         }),
-        queryParameter("ownerUserId", { type: "string" }),
-        queryParameter("createdAfter", { type: "string", format: "date-time" }),
+        queryParameter("owner_user_id", { type: "string" }),
+        queryParameter("created_after", { type: "string", format: "date-time" }),
       ];
     case "rtc.mediaArtifacts.list":
       return [
@@ -479,10 +486,10 @@ function operationListFilterParameters(route) {
           type: "string",
           enum: ["pending", "processing", "ready", "failed", "deleted"],
         }),
-        queryParameter("createdAfter", { type: "string", format: "date-time" }),
+        queryParameter("created_after", { type: "string", format: "date-time" }),
       ];
     case "rtc.qualitySamples.list":
-      return [queryParameter("createdAfter", { type: "string", format: "date-time" })];
+      return [queryParameter("created_after", { type: "string", format: "date-time" })];
     default:
       return [];
   }
@@ -493,7 +500,7 @@ function securityRequirement() {
 }
 
 function operationAuthMetadata(source, route) {
-  if (route.operationId === PROVIDER_WEBHOOK_RECEIVE_OPERATION_ID) {
+  if (route.operationId === PROVIDER_WEBHOOK_INGRESS_OPERATION_ID) {
     return {
       authMode: "anonymous",
       providerWebhookSignature: true,
@@ -514,7 +521,7 @@ function operationAuthMetadata(source, route) {
 }
 
 function routeAuthManifest(route) {
-  if (route.operationId === PROVIDER_WEBHOOK_RECEIVE_OPERATION_ID) {
+  if (route.operationId === PROVIDER_WEBHOOK_INGRESS_OPERATION_ID) {
     return {
       rateLimitTier: "openApiDefault",
       idempotent: true,
@@ -549,7 +556,10 @@ function mutationRoutePolicy(route) {
     return { rateLimitTier: null, idempotent: false };
   }
 
-  if (route.operationId.endsWith(".issue") || route.operationId.includes("credential")) {
+  if (
+    route.operationId.endsWith(".issue")
+    || route.operationId.toLowerCase().includes("credential")
+  ) {
     return { rateLimitTier: "authCritical", idempotent: true };
   }
 
@@ -2214,7 +2224,7 @@ function operationRequestSchemaName(route) {
       return "RtcProviderRouteCommand";
     case "rtc.providerRoutes.disable":
       return "RtcProviderRouteDisableRequest";
-    case "rtc.providerWebhooks.events.receive":
+    case "rtc.providerWebhooks.events.create":
       return "RtcProviderWebhookReceiveRequest";
     case "rtc.providerQueryJobs.create":
       return "RtcProviderQueryJobCreateRequest";
@@ -2240,7 +2250,7 @@ function operationResponseSchemaName(route) {
       return "RtcMediaSessionResponse";
     case "rtc.mediaSessions.completionRecord.retrieve":
       return "RtcMediaSessionCompletionRecordResponse";
-    case "rtc.mediaSessions.participantCredentials.issue":
+    case "rtc.mediaSessions.participantCredentials.create":
       return "RtcParticipantCredentialResponse";
     case "rtc.mediaSessions.recordingArtifacts.list":
     case "rtc.mediaArtifacts.list":
@@ -2276,7 +2286,7 @@ function operationResponseSchemaName(route) {
     case "rtc.providerProfiles.retrieve":
     case "rtc.providerProfiles.update":
     case "rtc.providerProfiles.disable":
-    case "rtc.providerProfiles.capabilities.configure":
+    case "rtc.providerProfiles.capabilities.update":
       return "RtcProviderProfileResponse";
     case "rtc.providerProfiles.verify":
       return "RtcProviderProfileVerifyResultResponse";
@@ -2291,7 +2301,7 @@ function operationResponseSchemaName(route) {
       return "RtcQualitySampleListResponse";
     case "rtc.providerWebhooks.events.list":
       return "RtcProviderWebhookEventListResponse";
-    case "rtc.providerWebhooks.events.receive":
+    case "rtc.providerWebhooks.events.create":
       return "RtcProviderWebhookEventResponse";
     case "rtc.providerQueryJobs.create":
     case "rtc.providerQueryJobs.retrieve":
@@ -2355,7 +2365,7 @@ function idempotencyParam() {
   return {
     name: "Idempotency-Key",
     in: "header",
-    required: false,
+    required: true,
     schema: { type: "string", minLength: 1, maxLength: 128 },
     description:
       "Client retry idempotency key scoped by tenant, organization, method, and path.",

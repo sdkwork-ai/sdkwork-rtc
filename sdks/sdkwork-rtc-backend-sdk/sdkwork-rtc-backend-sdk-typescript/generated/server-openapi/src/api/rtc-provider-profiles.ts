@@ -4,8 +4,8 @@ import type { ApiRequestOptions, HttpClient } from '../http/client';
 import type { RtcOperationCommand, RtcProviderProfile, RtcProviderProfileCommand, RtcProviderProfileDisableRequest, RtcProviderProfileVerifyRequest, RtcProviderProfileVerifyResult } from '../types';
 
 
-export interface RtcProviderProfilesRtcProviderProfilesCapabilitiesConfigureParams {
-  idempotencyKey?: string;
+export interface RtcProviderProfilesRtcProviderProfilesCapabilitiesUpdateParams {
+  idempotencyKey: string;
 }
 
 export class RtcProviderProfilesRtcProviderProfilesCapabilitiesApi {
@@ -16,11 +16,11 @@ export class RtcProviderProfilesRtcProviderProfilesCapabilitiesApi {
   }
 
 
-/** Rtc provider Profiles capabilities configure. */
-  async configure(providerProfileId: string, body: RtcOperationCommand, params?: RtcProviderProfilesRtcProviderProfilesCapabilitiesConfigureParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
+/** Rtc provider Profiles capabilities update. */
+  async update(providerProfileId: string, body: RtcOperationCommand, params: RtcProviderProfilesRtcProviderProfilesCapabilitiesUpdateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -40,19 +40,19 @@ export interface RtcProviderProfilesRtcProviderProfilesListParams {
 }
 
 export interface RtcProviderProfilesRtcProviderProfilesCreateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export interface RtcProviderProfilesRtcProviderProfilesUpdateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export interface RtcProviderProfilesRtcProviderProfilesDisableParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export interface RtcProviderProfilesRtcProviderProfilesVerifyParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcProviderProfilesRtcProviderProfilesApi {
@@ -81,10 +81,10 @@ export class RtcProviderProfilesRtcProviderProfilesApi {
   }
 
 /** Rtc provider Profiles create. */
-  async create(body: RtcProviderProfileCommand, params?: RtcProviderProfilesRtcProviderProfilesCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
+  async create(body: RtcProviderProfileCommand, params: RtcProviderProfilesRtcProviderProfilesCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -97,10 +97,10 @@ export class RtcProviderProfilesRtcProviderProfilesApi {
   }
 
 /** Rtc provider Profiles update. */
-  async update(providerProfileId: string, body?: RtcProviderProfileCommand, params?: RtcProviderProfilesRtcProviderProfilesUpdateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
+  async update(providerProfileId: string, params: RtcProviderProfilesRtcProviderProfilesUpdateParams, body?: RtcProviderProfileCommand, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -108,10 +108,10 @@ export class RtcProviderProfilesRtcProviderProfilesApi {
   }
 
 /** Rtc provider Profiles disable. */
-  async disable(providerProfileId: string, body: RtcProviderProfileDisableRequest, params?: RtcProviderProfilesRtcProviderProfilesDisableParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
+  async disable(providerProfileId: string, body: RtcProviderProfileDisableRequest, params: RtcProviderProfilesRtcProviderProfilesDisableParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfile> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -119,10 +119,10 @@ export class RtcProviderProfilesRtcProviderProfilesApi {
   }
 
 /** Rtc provider Profiles verify. */
-  async verify(providerProfileId: string, body: RtcProviderProfileVerifyRequest, params?: RtcProviderProfilesRtcProviderProfilesVerifyParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfileVerifyResult> {
+  async verify(providerProfileId: string, body: RtcProviderProfileVerifyRequest, params: RtcProviderProfilesRtcProviderProfilesVerifyParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderProfileVerifyResult> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

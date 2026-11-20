@@ -34,7 +34,7 @@ export class RtcProviderQueryJobsRtcProviderQueryJobsSnapshotsApi {
 }
 
 export interface RtcProviderQueryJobsRtcProviderQueryJobsCreateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcProviderQueryJobsRtcProviderQueryJobsApi {
@@ -48,10 +48,10 @@ export class RtcProviderQueryJobsRtcProviderQueryJobsApi {
 
 
 /** Rtc provider Query Jobs create. */
-  async create(body: RtcProviderQueryJobCreateRequest, params?: RtcProviderQueryJobsRtcProviderQueryJobsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderQueryJob> {
+  async create(body: RtcProviderQueryJobCreateRequest, params: RtcProviderQueryJobsRtcProviderQueryJobsCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderQueryJob> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

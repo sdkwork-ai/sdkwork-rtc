@@ -5,6 +5,7 @@ import type {
   ProviderQueryJobCreateCommand,
   ProviderQuerySnapshot,
 } from "../types/providerQueryJob";
+import { newIdempotencyKey } from "../sdk/index.js";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 interface SnapshotListResponse {
@@ -23,7 +24,7 @@ export class ProviderQueryJobService {
   }
 
   async create(command: ProviderQueryJobCreateCommand): Promise<ProviderQueryJob> {
-    const response = await this.client.rtcProviderQueryJobs.rtc.providerQueryJobs.create(command);
+    const response = await this.client.rtcProviderQueryJobs.rtc.providerQueryJobs.create(command, { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider query job data");
     }

@@ -163,7 +163,7 @@
             }
           },
           {
-            "name": "createdAfter",
+            "name": "created_after",
             "in": "query",
             "required": false,
             "schema": {
@@ -438,7 +438,7 @@
             }
           },
           {
-            "name": "ownerUserId",
+            "name": "owner_user_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -446,7 +446,7 @@
             }
           },
           {
-            "name": "createdAfter",
+            "name": "created_after",
             "in": "query",
             "required": false,
             "schema": {
@@ -671,7 +671,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -1079,7 +1079,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -1089,7 +1089,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -1314,7 +1314,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -1594,7 +1594,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -1604,7 +1604,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -1724,7 +1724,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -1959,7 +1959,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -2239,7 +2239,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -2249,7 +2249,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -2369,7 +2369,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -2604,7 +2604,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -2701,7 +2701,7 @@
         "x-sdkwork-server-request-id": true,
         "x-sdkwork-permission": "rtc.provider_credentials.write",
         "x-sdkwork-auth-mode": "dual-token",
-        "x-sdkwork-rate-limit-tier": "openApiDefault",
+        "x-sdkwork-rate-limit-tier": "authCritical",
         "x-sdkwork-idempotent": true,
         "requestBody": {
           "required": false,
@@ -2734,7 +2734,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -2831,7 +2831,7 @@
         "x-sdkwork-server-request-id": true,
         "x-sdkwork-permission": "rtc.provider_credentials.write",
         "x-sdkwork-auth-mode": "dual-token",
-        "x-sdkwork-rate-limit-tier": "openApiDefault",
+        "x-sdkwork-rate-limit-tier": "authCritical",
         "x-sdkwork-idempotent": true,
         "requestBody": {
           "required": true,
@@ -2856,7 +2856,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -2866,7 +2866,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -3361,7 +3361,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -3371,7 +3371,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -3596,7 +3596,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -3712,8 +3712,8 @@
         "tags": [
           "rtcProviderProfiles"
         ],
-        "summary": "Rtc provider Profiles capabilities configure.",
-        "operationId": "rtc.providerProfiles.capabilities.configure",
+        "summary": "Rtc provider Profiles capabilities update.",
+        "operationId": "rtc.providerProfiles.capabilities.update",
         "parameters": [
           {
             "name": "providerProfileId",
@@ -3726,7 +3726,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -3856,7 +3856,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -3986,7 +3986,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -4108,7 +4108,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -4118,7 +4118,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -4631,7 +4631,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -4641,7 +4641,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -4866,7 +4866,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -4996,7 +4996,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -5317,8 +5317,8 @@
         "tags": [
           "rtcProviderWebhooks"
         ],
-        "summary": "Rtc provider Webhooks events receive.",
-        "operationId": "rtc.providerWebhooks.events.receive",
+        "summary": "Rtc provider Webhooks events create.",
+        "operationId": "rtc.providerWebhooks.events.create",
         "parameters": [
           {
             "name": "provider",
@@ -5331,7 +5331,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -5341,7 +5341,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -5655,7 +5655,7 @@
             }
           },
           {
-            "name": "createdAfter",
+            "name": "created_after",
             "in": "query",
             "required": false,
             "schema": {
@@ -5821,7 +5821,7 @@
             }
           },
           {
-            "name": "ownerUserId",
+            "name": "owner_user_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -5829,7 +5829,7 @@
             }
           },
           {
-            "name": "createdAfter",
+            "name": "created_after",
             "in": "query",
             "required": false,
             "schema": {
@@ -5937,7 +5937,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -5947,7 +5947,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {

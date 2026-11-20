@@ -118,7 +118,7 @@
             }
           },
           {
-            "name": "ownerUserId",
+            "name": "owner_user_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -126,7 +126,7 @@
             }
           },
           {
-            "name": "createdAfter",
+            "name": "created_after",
             "in": "query",
             "required": false,
             "schema": {
@@ -234,7 +234,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -244,7 +244,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -564,8 +564,8 @@
         "tags": [
           "rtcParticipantCredentials"
         ],
-        "summary": "Rtc media Sessions participant Credentials issue.",
-        "operationId": "rtc.mediaSessions.participantCredentials.issue",
+        "summary": "Rtc media Sessions participant Credentials create.",
+        "operationId": "rtc.mediaSessions.participantCredentials.create",
         "parameters": [
           {
             "name": "mediaSessionId",
@@ -586,7 +586,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
@@ -596,7 +596,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -1060,7 +1060,7 @@
             }
           },
           {
-            "name": "ownerUserId",
+            "name": "owner_user_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -1068,7 +1068,7 @@
             }
           },
           {
-            "name": "createdAfter",
+            "name": "created_after",
             "in": "query",
             "required": false,
             "schema": {

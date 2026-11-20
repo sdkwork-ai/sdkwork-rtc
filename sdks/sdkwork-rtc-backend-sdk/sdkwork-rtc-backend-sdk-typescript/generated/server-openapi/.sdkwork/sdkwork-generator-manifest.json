@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "10f984cd54ca86c2c8ec8dcbc9b1c6ea4962732f49fffb39429ab4794ef2893a"
+      "sha256": "64d54bc29fe1fce524ae80061324578ae2699c8b8f7771113898a34d9cfbaffa"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -64,27 +64,27 @@
     },
     {
       "path": "src/api/rtc-media-artifacts.ts",
-      "sha256": "47b77334feb725329881746c0ec65ece90e7a56a7842141361a06a9ded90a7e9"
+      "sha256": "b005c32c9eab72e83c862ae716e538343b04e7f39db148af4f3b5166f77eff2a"
     },
     {
       "path": "src/api/rtc-media-sessions.ts",
-      "sha256": "e1f06ee8b630d5f294bd335a68d61585a75868275b893bf4b6d3c0251bc705cf"
+      "sha256": "d4e56fad8aa6fab77c243c4a0ddb3d0211309f3bb285b3b0cff1a96f6f1be933"
     },
     {
       "path": "src/api/rtc-provider-accounts.ts",
-      "sha256": "3a6211af85e6e584d8465e3772ff32fc4ffd5b19bb828d4ba762b0a014b3de1c"
+      "sha256": "2e242f4a0ab78f2af81b64ae80b24b6063544d13fcbb22492ea9563b312f15cd"
     },
     {
       "path": "src/api/rtc-provider-applications.ts",
-      "sha256": "261397d3aa897decbeb7f1e2d743530cbac8c034b10adbfaa33d826b74100cd0"
+      "sha256": "b973170d4d708725e668c132bb28beb08482a2e901ae6f748e205be1a1482da9"
     },
     {
       "path": "src/api/rtc-provider-credentials.ts",
-      "sha256": "1f0a1a78b244aab909bccb89951433e456767b712d88e09c8a087850e4c17817"
+      "sha256": "eb94ee394c0f9ea2b070308b317e995c0bf57eafc878ee5bd0a9a79939e4d0c6"
     },
     {
       "path": "src/api/rtc-provider-defaults.ts",
-      "sha256": "6fab25b1ac39f4791f8323c3aab083332af04d71cf2cf94bd5e39f06e329488d"
+      "sha256": "da4f5d07eaf81e6238029bd5bfa3dfa14361d434235a8bc7a66ed0151393b83b"
     },
     {
       "path": "src/api/rtc-provider-plugins.ts",
@@ -92,15 +92,15 @@
     },
     {
       "path": "src/api/rtc-provider-profiles.ts",
-      "sha256": "2153aecd7c2c0bb3ccb6d3f01fcf7ca7f28e91c50cad376c457b2fd0d2ceb4e2"
+      "sha256": "439cfe4a0a527f15b9eeef0a3a8b1d3a49547ff25ce972b1143f114c56f287d3"
     },
     {
       "path": "src/api/rtc-provider-query-jobs.ts",
-      "sha256": "b769c7398bacd86789079ad72d23e56fb35b9fb24c89a94347f6ac253f731ad5"
+      "sha256": "c6dd0effbf1576a1e66f523d8e30741d028a72d3541fc042f3e78ff7fe3e7ceb"
     },
     {
       "path": "src/api/rtc-provider-routes.ts",
-      "sha256": "fc57a73f88e12402bce02dff7ed658e5121ea6df189bcecd274fefdaaacb2ed3"
+      "sha256": "87e013b1effa9403476750764a69368e9ef7f86da5abb73d61e60b9f6f6a8daa"
     },
     {
       "path": "src/api/rtc-provider-schemas.ts",
@@ -108,15 +108,15 @@
     },
     {
       "path": "src/api/rtc-provider-webhooks.ts",
-      "sha256": "c93238f2179e9cb98b045e2fdd6fcdddb3ad641d0524acac06bdded8e775efd4"
+      "sha256": "d5723eaf7ddddb7c1fd697d3fe56b96a8d9d7eb4f7289315b6d2352044d21093"
     },
     {
       "path": "src/api/rtc-quality-samples.ts",
-      "sha256": "a89a36bb41fd2e23882f10c86353a11a79551471f4bedd31b67abad13fd028a4"
+      "sha256": "6a975b10c8fba81d91c84e18137353a8285c6980254fcbe44f93a2be584d3303"
     },
     {
       "path": "src/api/rtc-rooms.ts",
-      "sha256": "55d08fb0ff899a66a1353695342fd26c18ed692eef67ccef934b5663dfc4f72e"
+      "sha256": "1d0454af0d71b931dbb2b64eec74b9fc9a43929087437b5298e97e221ad144a6"
     },
     {
       "path": "src/auth/index.ts",

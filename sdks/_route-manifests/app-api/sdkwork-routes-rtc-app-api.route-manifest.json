@@ -155,7 +155,7 @@
     {
       "method": "POST",
       "path": "/app/v3/api/rtc/media_sessions/{mediaSessionId}/participants/{participantId}/credential",
-      "operationId": "rtc.mediaSessions.participantCredentials.issue",
+      "operationId": "rtc.mediaSessions.participantCredentials.create",
       "tags": [
         "rtcParticipantCredentials"
       ],
@@ -170,7 +170,7 @@
       },
       "handler": {
         "module": "crate::handlers",
-        "name": "mediaSessions_participantCredentials_issue"
+        "name": "mediaSessions_participantCredentials_create"
       },
       "schemas": {
         "request": "RtcOperationCommand",

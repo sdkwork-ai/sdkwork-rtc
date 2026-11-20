@@ -27,7 +27,22 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-const result = await client.rtcProviderPlugins.rtc.providerPlugins.list();
+const provider = 'provider';
+const body = {
+  providerProfileId: 'providerProfileId',
+  externalEventId: 'externalEventId',
+  signatureHeader: 'signatureHeader',
+  headers: {
+    value: 'value',
+  },
+  rawPayload: {},
+  receivedAt: 'receivedAt',
+};
+const idempotencyKey = 'Idempotency-Key';
+const params = {
+  idempotencyKey,
+};
+const result = await client.rtcProviderWebhooks.rtc.providerWebhooks.events.create(provider, body, params);
 ```
 
 ## Authentication
@@ -82,7 +97,7 @@ const params = {
   sort: 'sort',
   q: 'q',
   status: 'pending',
-  createdAfter: 'createdAfter',
+  created_after: 'created_after',
 };
 const result = await client.rtcMediaArtifacts.rtc.mediaArtifacts.list(params);
 ```
@@ -98,8 +113,8 @@ const params = {
   sort: 'sort',
   q: 'q',
   status: 'preparing',
-  ownerUserId: 'ownerUserId',
-  createdAfter: 'createdAfter',
+  owner_user_id: 'owner_user_id',
+  created_after: 'created_after',
 };
 const result = await client.rtcMediaSessions.rtc.mediaSessions.list(params);
 ```
@@ -205,15 +220,23 @@ const result = await client.rtcProviderSchemas.rtc.providerSchemas.list();
 ### rtc_provider_webhooks
 
 ```typescript
-// Rtc provider Webhooks events list.
-const params = {
-  page: 1,
-  page_size: 2,
-  cursor: 'cursor',
-  sort: 'sort',
-  q: 'q',
+// Rtc provider Webhooks events create.
+const provider = 'provider';
+const body = {
+  providerProfileId: 'providerProfileId',
+  externalEventId: 'externalEventId',
+  signatureHeader: 'signatureHeader',
+  headers: {
+    value: 'value',
+  },
+  rawPayload: {},
+  receivedAt: 'receivedAt',
 };
-const result = await client.rtcProviderWebhooks.rtc.providerWebhooks.events.list(params);
+const idempotencyKey = 'Idempotency-Key';
+const params = {
+  idempotencyKey,
+};
+const result = await client.rtcProviderWebhooks.rtc.providerWebhooks.events.create(provider, body, params);
 ```
 
 ### rtc_quality_samples
@@ -226,7 +249,7 @@ const params = {
   cursor: 'cursor',
   sort: 'sort',
   q: 'q',
-  createdAfter: 'createdAfter',
+  created_after: 'created_after',
 };
 const result = await client.rtcQualitySamples.rtc.qualitySamples.list(params);
 ```
@@ -242,8 +265,8 @@ const params = {
   sort: 'sort',
   q: 'q',
   status: 'active',
-  ownerUserId: 'ownerUserId',
-  createdAfter: 'createdAfter',
+  owner_user_id: 'owner_user_id',
+  created_after: 'created_after',
 };
 const result = await client.rtcRooms.rtc.rooms.list(params);
 ```
@@ -254,7 +277,22 @@ const result = await client.rtcRooms.rtc.rooms.list(params);
 import { SdkworkBackendClient, NetworkError, TimeoutError, AuthenticationError } from 'sdkwork-rtc-backend-sdk-generated-typescript';
 
 try {
-  const result = await client.rtcProviderPlugins.rtc.providerPlugins.list();
+  const provider = 'provider';
+  const body = {
+    providerProfileId: 'providerProfileId',
+    externalEventId: 'externalEventId',
+    signatureHeader: 'signatureHeader',
+    headers: {
+      value: 'value',
+    },
+    rawPayload: {},
+    receivedAt: 'receivedAt',
+  };
+  const idempotencyKey = 'Idempotency-Key';
+  const params = {
+    idempotencyKey,
+  };
+  const result = await client.rtcProviderWebhooks.rtc.providerWebhooks.events.create(provider, body, params);
 } catch (error) {
   if (error instanceof AuthenticationError) {
     console.error('Authentication failed:', error.message);

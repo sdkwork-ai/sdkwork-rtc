@@ -1,6 +1,7 @@
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 
 import type { ProviderRoute, ProviderRouteCommand } from "../types/providerRoute";
+import { newIdempotencyKey } from "../sdk/index.js";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 interface ListResponse {
@@ -46,7 +47,7 @@ export class ProviderRouteService {
       command as Parameters<
         typeof this.client.rtcProviderRoutes.rtc.providerRoutes.create
       >[0],
-    );
+    { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider route data");
     }
@@ -64,9 +65,10 @@ export class ProviderRouteService {
   async update(id: string, command: ProviderRouteCommand): Promise<ProviderRoute> {
     const response = await this.client.rtcProviderRoutes.rtc.providerRoutes.update(
       id,
+      { idempotencyKey: newIdempotencyKey() },
       command as Parameters<
         typeof this.client.rtcProviderRoutes.rtc.providerRoutes.update
-      >[1],
+      >[2],
     );
     if (!response) {
       throw new Error("Invalid response: missing provider route data");
@@ -77,7 +79,7 @@ export class ProviderRouteService {
   async disable(id: string, reason?: string): Promise<ProviderRoute> {
     const response = await this.client.rtcProviderRoutes.rtc.providerRoutes.disable(id, {
       reason,
-    });
+    }, { idempotencyKey: newIdempotencyKey() });
     if (!response) {
       throw new Error("Invalid response: missing provider route data");
     }

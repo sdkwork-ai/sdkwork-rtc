@@ -1,6 +1,7 @@
 import type { AuthTokenManager } from "@sdkwork/sdk-common";
 
 import type { Room, RoomCreateCommand, RoomListParams, RoomListResponse } from "../types/room";
+import { newIdempotencyKey } from "../sdk/index.js";
 import { resolveBackendRtcClient, type RtcBackendClientOptions, type RtcBackendClientSource } from "./backendClient";
 
 export class RoomService {
@@ -45,7 +46,7 @@ export class RoomService {
     const response = await this.client.rtcRooms.rtc.rooms.create({
       title: command.title,
       roomId: command.roomId ?? null,
-    });
+    }, { idempotencyKey: newIdempotencyKey() });
     return response;
   }
 }

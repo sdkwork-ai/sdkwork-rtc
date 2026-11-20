@@ -13,15 +13,15 @@ export interface RtcProviderRoutesRtcProviderRoutesListParams {
 }
 
 export interface RtcProviderRoutesRtcProviderRoutesCreateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export interface RtcProviderRoutesRtcProviderRoutesUpdateParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export interface RtcProviderRoutesRtcProviderRoutesDisableParams {
-  idempotencyKey?: string;
+  idempotencyKey: string;
 }
 
 export class RtcProviderRoutesRtcProviderRoutesApi {
@@ -45,10 +45,10 @@ export class RtcProviderRoutesRtcProviderRoutesApi {
   }
 
 /** Rtc provider Routes create. */
-  async create(body: RtcProviderRouteCommand, params?: RtcProviderRoutesRtcProviderRoutesCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
+  async create(body: RtcProviderRouteCommand, params: RtcProviderRoutesRtcProviderRoutesCreateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -61,10 +61,10 @@ export class RtcProviderRoutesRtcProviderRoutesApi {
   }
 
 /** Rtc provider Routes update. */
-  async update(providerRouteId: string, body?: RtcProviderRouteCommand, params?: RtcProviderRoutesRtcProviderRoutesUpdateParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
+  async update(providerRouteId: string, params: RtcProviderRoutesRtcProviderRoutesUpdateParams, body?: RtcProviderRouteCommand, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );
@@ -72,10 +72,10 @@ export class RtcProviderRoutesRtcProviderRoutesApi {
   }
 
 /** Rtc provider Routes disable. */
-  async disable(providerRouteId: string, body: RtcProviderRouteDisableRequest, params?: RtcProviderRoutesRtcProviderRoutesDisableParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
+  async disable(providerRouteId: string, body: RtcProviderRouteDisableRequest, params: RtcProviderRoutesRtcProviderRoutesDisableParams, requestOptions?: ApiRequestOptions): Promise<RtcProviderRoute> {
     const requestHeaders = buildRequestHeaders(
       {
-        'Idempotency-Key': { value: params?.idempotencyKey, style: 'simple', explode: false },
+        'Idempotency-Key': { value: params.idempotencyKey, style: 'simple', explode: false },
       },
       {}
     );

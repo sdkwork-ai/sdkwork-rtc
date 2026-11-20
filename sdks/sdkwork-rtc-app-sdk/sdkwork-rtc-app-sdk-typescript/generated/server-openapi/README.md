@@ -80,8 +80,8 @@ const params = {
   sort: 'sort',
   q: 'q',
   status: 'preparing',
-  ownerUserId: 'ownerUserId',
-  createdAfter: 'createdAfter',
+  owner_user_id: 'owner_user_id',
+  created_after: 'created_after',
 };
 const result = await client.rtcMediaSessions.rtc.mediaSessions.list(params);
 ```
@@ -89,7 +89,7 @@ const result = await client.rtcMediaSessions.rtc.mediaSessions.list(params);
 ### rtc_participant_credentials
 
 ```typescript
-// Rtc media Sessions participant Credentials issue.
+// Rtc media Sessions participant Credentials create.
 const mediaSessionId = '1';
 const participantId = '1';
 const body = {};
@@ -97,7 +97,7 @@ const idempotencyKey = 'Idempotency-Key';
 const params = {
   idempotencyKey,
 };
-const result = await client.rtcParticipantCredentials.rtc.mediaSessions.participantCredentials.issue(mediaSessionId, participantId, body, params);
+const result = await client.rtcParticipantCredentials.rtc.mediaSessions.participantCredentials.create(mediaSessionId, participantId, body, params);
 ```
 
 ### rtc_recording_artifacts
@@ -140,8 +140,8 @@ const params = {
   sort: 'sort',
   q: 'q',
   status: 'active',
-  ownerUserId: 'ownerUserId',
-  createdAfter: 'createdAfter',
+  owner_user_id: 'owner_user_id',
+  created_after: 'created_after',
 };
 const result = await client.rtcRooms.rtc.rooms.list(params);
 ```

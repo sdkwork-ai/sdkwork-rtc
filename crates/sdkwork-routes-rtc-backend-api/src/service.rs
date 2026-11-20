@@ -45,7 +45,11 @@ pub struct RtcBackendListQuery {
     pub provider: Option<String>,
     pub status: Option<String>,
     pub environment: Option<String>,
+    // Query parameter names are lower_snake_case (API_SPEC section 13); the
+    // camelCase aliases keep the pre-rename wire form accepted.
+    #[serde(rename = "owner_user_id", alias = "ownerUserId")]
     pub owner_user_id: Option<String>,
+    #[serde(rename = "created_after", alias = "createdAfter")]
     pub created_after: Option<String>,
     pub page: Option<u32>,
     pub page_size: Option<u32>,
