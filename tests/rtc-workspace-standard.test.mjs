@@ -404,7 +404,15 @@ test("sdkwork-rtc PC app integrates appbase auth runtime factory", () => {
   assert.match(read("apps/sdkwork-rtc-pc/src/bootstrap/environment.ts"), /VITE_SDKWORK_RTC_PC_APPBASE_APP_API_BASE_URL/u);
   assert.match(read("apps/sdkwork-rtc-pc/src/AppAuthGate.tsx"), /SdkworkIamAuthRoutes/u);
   assert.match(read("apps/sdkwork-rtc-pc/src/App.tsx"), /HashRouter/u);
-  assert.match(read("apps/sdkwork-rtc-pc/vite.config.ts"), /@sdkwork\/auth-pc-react/u);
+  // Auth packages resolve through the pnpm workspace declaration
+  // (PNPM_WORKSPACE_DEPENDENCY_SPEC: import by package name; vite aliases for
+  // @sdkwork/* packages are forbidden outside documented bootstrap
+  // entrypoints).
+  assert.doesNotMatch(
+    read("apps/sdkwork-rtc-pc/vite.config.ts"),
+    /@sdkwork\/auth-pc-react/u,
+    "auth packages must resolve through the workspace, not vite aliases",
+  );
   assert.ok(
     exists("apps/sdkwork-rtc-pc/src/__tests__/pc-architecture.contract.test.ts"),
     "rtc pc app must declare architecture contract tests",
@@ -430,7 +438,14 @@ test("sdkwork-rtc H5 app integrates appbase auth runtime and shared IAM auth rou
   assert.match(read("apps/sdkwork-rtc-h5/src/AppAuthGate.tsx"), /SdkworkIamAuthRoutes/u);
   assert.match(read("apps/sdkwork-rtc-h5/src/App.tsx"), /HashRouter/u);
   assert.doesNotMatch(read("apps/sdkwork-rtc-h5/src/AppAuthGate.tsx"), /RtcH5AuthLoginPage/u);
-  assert.match(read("apps/sdkwork-rtc-h5/vite.config.ts"), /@sdkwork\/auth-pc-react/u);
+  // Auth packages resolve through the pnpm workspace declaration
+  // (PNPM_WORKSPACE_DEPENDENCY_SPEC: vite aliases for @sdkwork/* packages are
+  // forbidden outside documented bootstrap entrypoints).
+  assert.doesNotMatch(
+    read("apps/sdkwork-rtc-h5/vite.config.ts"),
+    /@sdkwork\/auth-pc-react/u,
+    "auth packages must resolve through the workspace, not vite aliases",
+  );
   assert.ok(
     exists("apps/sdkwork-rtc-h5/src/__tests__/h5-architecture.contract.test.ts"),
     "rtc h5 app must declare architecture contract tests",

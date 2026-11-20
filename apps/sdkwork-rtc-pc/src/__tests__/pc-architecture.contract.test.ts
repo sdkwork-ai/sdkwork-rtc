@@ -134,8 +134,11 @@ describe("rtc pc architecture contract", () => {
       expect(deps, path.relative(appRoot, file)).not.toHaveProperty("@sdkwork/auth-runtime-pc-react");
     }
 
-    expect(viteConfig).toContain("@sdkwork/auth-pc-react");
-    expect(viteConfig).toContain("@sdkwork/auth-runtime-pc-react");
+    // Auth packages resolve through the pnpm workspace declaration
+    // (PNPM_WORKSPACE_DEPENDENCY_SPEC): vite aliases for @sdkwork/* packages
+    // are forbidden outside documented bootstrap entrypoints.
+    expect(viteConfig).not.toContain("@sdkwork/auth-pc-react");
+    expect(viteConfig).not.toContain("@sdkwork/auth-runtime-pc-react");
     expect(viteConfig).toContain("tailwindcss");
   });
 

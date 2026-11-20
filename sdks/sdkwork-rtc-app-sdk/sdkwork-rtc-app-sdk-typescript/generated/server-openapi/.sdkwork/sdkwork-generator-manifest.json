@@ -144,7 +144,7 @@
     },
     {
       "path": "src/types/rtc-active-provider-profile.ts",
-      "sha256": "fd25c8eef0b4086e1f6fc5a7d56695c88a5c01a8d681a73734cffc362b213eb7"
+      "sha256": "c5a0547ba3d6ff70b77231a41619669e207c0c297bb494840688571181e01a7f"
     },
     {
       "path": "src/types/rtc-create-media-session-request.ts",

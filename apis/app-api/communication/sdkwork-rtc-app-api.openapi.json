@@ -3012,11 +3012,11 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "region": {

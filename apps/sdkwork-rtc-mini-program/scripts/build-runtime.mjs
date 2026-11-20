@@ -33,6 +33,55 @@ function readRuntimeDefaults() {
   };
 }
 
+// Canonical sibling packages that the runtime bundle depends on. Without this
+// resolution pin, esbuild resolves `@sdkwork/sdk-common` / `@sdkwork/utils`
+// through the nearest node_modules of the importing file — which after a
+// workspace install is the generated transport package's nested copies — and
+// the emitted bundle then embeds `*-typescript/generated/server-openapi` path
+// strings that the consumer-import contract rejects (APP_SDK_INTEGRATION_SPEC
+// section 9). Resolution order mirrors the shared SDK runtime surface: dist
+// entry first, dist subpath, then the TypeScript source entry.
+const workspaceRoot = path.resolve(root, "../../../..");
+const canonicalSiblingPackages = {
+  "@sdkwork/sdk-common": path.join(
+    workspaceRoot,
+    "sdkwork-sdk-commons/sdkwork-sdk-common-typescript",
+  ),
+  "@sdkwork/utils": path.join(workspaceRoot, "sdkwork-utils/packages/sdkwork-utils-typescript"),
+};
+
+const canonicalSiblingPackagesPlugin = {
+  name: "canonical-sibling-packages",
+  setup(build) {
+    // Go regular expression: JS unicode flag `u` is not supported here.
+    build.onResolve({ filter: /^@sdkwork\/(?:sdk-common|utils)(?:\/.+)?$/ }, (args) => {
+      const segments = args.path.split("/");
+      const packageName = `@${segments[1]}/${segments[2]}`;
+      const packageDir = canonicalSiblingPackages[packageName];
+      if (!packageDir) {
+        return null;
+      }
+      const subPath = segments.slice(3).join("/");
+      const candidates = subPath
+        ? [
+            path.join(packageDir, "dist", `${subPath}.js`),
+            path.join(packageDir, "dist", subPath, "index.js"),
+            path.join(packageDir, "src", `${subPath}.ts`),
+          ]
+        : [
+            path.join(packageDir, "dist", "index.js"),
+            path.join(packageDir, "src", "index.ts"),
+          ];
+      for (const candidate of candidates) {
+        if (existsSync(candidate)) {
+          return { path: candidate };
+        }
+      }
+      return null;
+    });
+  },
+};
+
 const runtimeDefaults = readRuntimeDefaults();
 
 await esbuild.build({
@@ -43,6 +92,11 @@ await esbuild.build({
   format: "cjs",
   target: "es2019",
   logLevel: "info",
+  plugins: [canonicalSiblingPackagesPlugin],
+  // The committed runtime artifact is comment-free: module path comments would
+  // otherwise embed resolved dependency paths into the shipped mini-program
+  // source tree.
+  minify: true,
   define: {
     __SDKWORK_RTC_DEFAULT_API_BASE_URL__: JSON.stringify(runtimeDefaults.apiBaseUrl),
     __SDKWORK_RTC_DEFAULT_APPBASE_LOGIN_URL__: JSON.stringify(runtimeDefaults.appbaseLoginUrl),

@@ -7933,11 +7933,11 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "externalTenantId": {
@@ -8053,11 +8053,11 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "externalTenantId": {
@@ -8232,11 +8232,11 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "region": {
@@ -8381,11 +8381,11 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "region": {
@@ -8591,6 +8591,24 @@
             "type": "string",
             "description": "Reference to secret-managed provider credential material. Raw provider secrets are never returned by the RTC API."
           },
+          "credentialKind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Secret shape recorded for the credential (for example secret_text or access_key_pair)."
+          },
+          "secretConfigured": {
+            "type": "boolean",
+            "description": "Whether sealed secret material is stored for this credential."
+          },
+          "secretMaskedLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Non-reversible masked preview of the stored secret."
+          },
           "credentialFingerprint": {
             "type": [
               "string",
@@ -8718,6 +8736,20 @@
           },
           "credentialRef": {
             "type": "string"
+          },
+          "credentialKind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credentialSecret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "writeOnly": true,
+            "description": "Raw provider secret. Sealed with the deployment master secret before persistence and never returned."
           },
           "credentialFingerprint": {
             "type": [
@@ -8912,11 +8944,11 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "region": {
@@ -8924,6 +8956,13 @@
               "string",
               "null"
             ]
+          },
+          "providerApplicationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Linked RTC provider application that owns the credential material."
           },
           "providerAppId": {
             "type": [
@@ -9124,14 +9163,20 @@
           "environment": {
             "type": "string",
             "enum": [
-              "production",
-              "staging",
               "development",
               "test",
-              "sandbox"
+              "staging",
+              "production",
+              "demo"
             ]
           },
           "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "providerApplicationId": {
             "type": [
               "string",
               "null"

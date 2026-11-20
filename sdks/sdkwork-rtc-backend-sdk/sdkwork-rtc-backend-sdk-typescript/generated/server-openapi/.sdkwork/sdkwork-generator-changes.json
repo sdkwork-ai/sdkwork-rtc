@@ -9,14 +9,18 @@
     "protocol": "http",
     "packageName": "sdkwork-rtc-backend-sdk-generated-typescript"
   },
-  "changeFingerprint": "a1528358d277dcca019a5848d7dfcd8e47dd1746da209e75b9d6b2985dc51fea",
+  "changeFingerprint": "14ef3010e229f80af3bf4a0cf4cc22d5de126c549aeecf6e8249e1301df60226",
   "changes": {
     "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
-      "README.md",
-      "src/api/rtc-provider-accounts.ts",
-      "src/api/rtc-provider-profiles.ts",
-      "src/types/rtc-provider-config-schema.ts"
+      "src/types/rtc-provider-account-command.ts",
+      "src/types/rtc-provider-account.ts",
+      "src/types/rtc-provider-application-command.ts",
+      "src/types/rtc-provider-application.ts",
+      "src/types/rtc-provider-credential-command.ts",
+      "src/types/rtc-provider-credential.ts",
+      "src/types/rtc-provider-profile-command.ts",
+      "src/types/rtc-provider-profile.ts"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -27,16 +31,19 @@
       "CHANGELOG.md",
       "LICENSE",
       "package.json",
+      "README.md",
       "sdkwork-sdk.json",
       "src/api/base.ts",
       "src/api/index.ts",
       "src/api/paths.ts",
       "src/api/rtc-media-artifacts.ts",
       "src/api/rtc-media-sessions.ts",
+      "src/api/rtc-provider-accounts.ts",
       "src/api/rtc-provider-applications.ts",
       "src/api/rtc-provider-credentials.ts",
       "src/api/rtc-provider-defaults.ts",
       "src/api/rtc-provider-plugins.ts",
+      "src/api/rtc-provider-profiles.ts",
       "src/api/rtc-provider-query-jobs.ts",
       "src/api/rtc-provider-routes.ts",
       "src/api/rtc-provider-schemas.ts",
@@ -76,30 +83,24 @@
       "src/types/rtc-media-session-response.ts",
       "src/types/rtc-media-session.ts",
       "src/types/rtc-operation-command.ts",
-      "src/types/rtc-provider-account-command.ts",
       "src/types/rtc-provider-account-disable-request.ts",
       "src/types/rtc-provider-account-list-response.ts",
       "src/types/rtc-provider-account-response.ts",
-      "src/types/rtc-provider-account.ts",
-      "src/types/rtc-provider-application-command.ts",
       "src/types/rtc-provider-application-disable-request.ts",
       "src/types/rtc-provider-application-list-response.ts",
       "src/types/rtc-provider-application-response.ts",
-      "src/types/rtc-provider-application.ts",
       "src/types/rtc-provider-capability-snapshot.ts",
       "src/types/rtc-provider-config-field-schema.ts",
       "src/types/rtc-provider-config-schema-list-response.ts",
       "src/types/rtc-provider-config-schema-response.ts",
-      "src/types/rtc-provider-credential-command.ts",
+      "src/types/rtc-provider-config-schema.ts",
       "src/types/rtc-provider-credential-list-response.ts",
       "src/types/rtc-provider-credential-response.ts",
       "src/types/rtc-provider-credential-revoke-request.ts",
       "src/types/rtc-provider-credential-role-schema.ts",
-      "src/types/rtc-provider-credential.ts",
       "src/types/rtc-provider-plugin-descriptor.ts",
       "src/types/rtc-provider-plugin-list-response.ts",
       "src/types/rtc-provider-plugin-response.ts",
-      "src/types/rtc-provider-profile-command.ts",
       "src/types/rtc-provider-profile-disable-request.ts",
       "src/types/rtc-provider-profile-list-response.ts",
       "src/types/rtc-provider-profile-response.ts",
@@ -107,7 +108,6 @@
       "src/types/rtc-provider-profile-verify-request.ts",
       "src/types/rtc-provider-profile-verify-result-response.ts",
       "src/types/rtc-provider-profile-verify-result.ts",
-      "src/types/rtc-provider-profile.ts",
       "src/types/rtc-provider-query-job-create-request.ts",
       "src/types/rtc-provider-query-job-response.ts",
       "src/types/rtc-provider-query-job.ts",
@@ -144,44 +144,36 @@
   "impact": {
     "schemaVersion": 1,
     "areas": [
-      "api-surface",
-      "models",
-      "documentation"
+      "models"
     ],
     "details": [
       {
-        "area": "api-surface",
-        "paths": [
-          "src/api/rtc-provider-accounts.ts",
-          "src/api/rtc-provider-profiles.ts"
-        ]
-      },
-      {
         "area": "models",
         "paths": [
-          "src/types/rtc-provider-config-schema.ts"
-        ]
-      },
-      {
-        "area": "documentation",
-        "paths": [
-          "README.md"
+          "src/types/rtc-provider-account-command.ts",
+          "src/types/rtc-provider-account.ts",
+          "src/types/rtc-provider-application-command.ts",
+          "src/types/rtc-provider-application.ts",
+          "src/types/rtc-provider-credential-command.ts",
+          "src/types/rtc-provider-credential.ts",
+          "src/types/rtc-provider-profile-command.ts",
+          "src/types/rtc-provider-profile.ts"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+    "summary": "Detected impact areas: models. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: models. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: models.",
         "workingDirectory": "D:\\sdkwork-space\\sdkwork-rtc\\sdks\\sdkwork-rtc-backend-sdk\\sdkwork-rtc-backend-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -199,7 +191,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, documentation.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: models.",
         "workingDirectory": "D:\\sdkwork-space\\sdkwork-rtc\\sdks\\sdkwork-rtc-backend-sdk\\sdkwork-rtc-backend-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [

@@ -3,7 +3,7 @@ export interface RtcProviderAccountCommand {
   code: string;
   name: string;
   status?: 'active' | 'disabled' | 'archived';
-  environment: 'production' | 'staging' | 'development' | 'test' | 'sandbox';
+  environment: 'development' | 'test' | 'staging' | 'production' | 'demo';
   externalTenantId?: string | null;
   cloudAccountId?: string | null;
   projectId?: string | null;

@@ -11,7 +11,7 @@ import type { ProviderAccount, ProviderAccountCommand } from "./providerAccount"
 import type { ProviderApplication, ProviderApplicationCommand } from "./providerApplication";
 import type { ProviderCredential, ProviderCredentialCommand } from "./providerCredential";
 import type { ProviderProfile, ProviderProfileCommand } from "./providerProfile";
-import type { ProviderRoute } from "./providerRoute";
+import type { ProviderRoute, ProviderRouteCommand } from "./providerRoute";
 import type { ProviderConfigSchema, ProviderPluginDescriptor } from "./providerSchema";
 import type { ProviderQueryJob, ProviderQueryJobCreateCommand, ProviderQuerySnapshot } from "./providerQueryJob";
 import type { ProviderWebhookEvent } from "./providerWebhookEvent";
@@ -25,37 +25,74 @@ export interface ListPort<TListParams, TResponse> {
   list(params?: TListParams): Promise<TResponse>;
 }
 
+/** Provider profile verification modes accepted by the backend. */
+export type ProviderVerifyMode =
+  | "credential"
+  | "webhook"
+  | "active_query"
+  | "recording"
+  | "full";
+
+export interface ProviderProfileVerifyCheck {
+  name: string;
+  status: "passed" | "warning" | "failed" | "skipped";
+  detail?: string | null;
+}
+
+export interface ProviderProfileVerifyResult {
+  providerProfileId: string;
+  provider: string;
+  status: "unknown" | "healthy" | "degraded" | "unhealthy";
+  verifiedAt: string;
+  latencyMs?: number | null;
+  checks: ProviderProfileVerifyCheck[];
+}
+
 export interface RtcAdminCenterServices {
   accounts: ListPort<{ cursor?: string; limit?: number }, { items: ProviderAccount[]; nextCursor?: string | null }> & {
+    get(accountId: string): Promise<ProviderAccount>;
     create(command: ProviderAccountCommand): Promise<ProviderAccount>;
+    update(accountId: string, command: ProviderAccountCommand): Promise<ProviderAccount>;
+    disable(accountId: string, reason?: string): Promise<ProviderAccount>;
   };
   applications: {
     list(
       providerAccountId: string,
       params?: { cursor?: string; limit?: number },
     ): Promise<{ items: ProviderApplication[]; nextCursor?: string | null }>;
-    disable(applicationId: string, reason?: string): Promise<ProviderApplication>;
+    get(applicationId: string): Promise<ProviderApplication>;
     create(accountId: string, command: ProviderApplicationCommand): Promise<ProviderApplication>;
+    update(applicationId: string, command: ProviderApplicationCommand): Promise<ProviderApplication>;
+    disable(applicationId: string, reason?: string): Promise<ProviderApplication>;
   };
   credentials: {
     list(
       providerApplicationId: string,
       params?: { cursor?: string; limit?: number },
     ): Promise<{ items: ProviderCredential[]; nextCursor?: string | null }>;
-    revoke(credentialId: string, reason?: string): Promise<ProviderCredential>;
+    get(credentialId: string): Promise<ProviderCredential>;
     create(applicationId: string, command: ProviderCredentialCommand): Promise<ProviderCredential>;
+    update(credentialId: string, command: ProviderCredentialCommand): Promise<ProviderCredential>;
+    revoke(credentialId: string, reason?: string): Promise<ProviderCredential>;
   };
   profiles: ListPort<{ cursor?: string; limit?: number }, { items: ProviderProfile[]; nextCursor?: string | null }> & {
+    get(profileId: string): Promise<ProviderProfile>;
     create(command: ProviderProfileCommand): Promise<ProviderProfile>;
+    update(profileId: string, command: ProviderProfileCommand): Promise<ProviderProfile>;
     disable(profileId: string, reason?: string): Promise<ProviderProfile>;
-    verify(profileId: string, mode: string): Promise<unknown>;
+    verify(profileId: string, mode: ProviderVerifyMode): Promise<ProviderProfileVerifyResult>;
     configureCapabilities(
       profileId: string,
       enabled: string[],
       disabled: string[],
     ): Promise<ProviderProfile>;
   };
-  routes: ListPort<{ cursor?: string; limit?: number }, { items: ProviderRoute[]; nextCursor?: string | null }>;
+  routes: ListPort<{ cursor?: string; limit?: number }, { items: ProviderRoute[]; nextCursor?: string | null }> & {
+    get(routeId: string): Promise<ProviderRoute>;
+    create(command: ProviderRouteCommand): Promise<ProviderRoute>;
+    update(routeId: string, command: ProviderRouteCommand): Promise<ProviderRoute>;
+    disable(routeId: string, reason?: string): Promise<ProviderRoute>;
+  };
   schemas: {
     listSchemas(): Promise<ProviderConfigSchema[]>;
   };

@@ -252,7 +252,7 @@
     },
     {
       "path": "src/types/rtc-provider-account-command.ts",
-      "sha256": "3a35ac203f9c3289c410035e53454842b84e18ec0c5ac4c45e6be744fd64524c"
+      "sha256": "ab7604b66ae1e35032ef1ef3e36c6ba587371bc44de31cd04061630f600016d9"
     },
     {
       "path": "src/types/rtc-provider-account-disable-request.ts",
@@ -268,11 +268,11 @@
     },
     {
       "path": "src/types/rtc-provider-account.ts",
-      "sha256": "122f9ecefd424ba530129d1f6af161fe0fbbced3a50d732d087fbda69b8f507e"
+      "sha256": "4036241ebdb24147ad711540151a56aa0d2d086b92c66f5ac9abe1a8586c1b9f"
     },
     {
       "path": "src/types/rtc-provider-application-command.ts",
-      "sha256": "d65a1c11615bc5f8f470ec1f1362a9e001e91d4025354aef735f24bdf71d7222"
+      "sha256": "c7118c04a258a0028774e483674be3ab41bf9628b752724d7ad71587789a989a"
     },
     {
       "path": "src/types/rtc-provider-application-disable-request.ts",
@@ -288,7 +288,7 @@
     },
     {
       "path": "src/types/rtc-provider-application.ts",
-      "sha256": "c6089a0021b381da4c6bcb7432cab0beede55eb69878db9ec3daba9ddf173812"
+      "sha256": "e2fa5973783fc661b807e9c10485b497fc04c9ff695d86a2519aa6eb1309ce81"
     },
     {
       "path": "src/types/rtc-provider-capability-snapshot.ts",
@@ -312,7 +312,7 @@
     },
     {
       "path": "src/types/rtc-provider-credential-command.ts",
-      "sha256": "81151979ab8061e3f8e1759110269a0db08d7d4e0fa2d82cb5a76a1099f25123"
+      "sha256": "a89eb62214db62fddcdf54fed687b94b9d3ee60558aaaecd6e23ced4545ae006"
     },
     {
       "path": "src/types/rtc-provider-credential-list-response.ts",
@@ -332,7 +332,7 @@
     },
     {
       "path": "src/types/rtc-provider-credential.ts",
-      "sha256": "64ffae70a1e3d79d6158ecd6e7311a1c0a7e76e327c0d28e59b29268a2d14f5b"
+      "sha256": "17912443ec27551c26a65f7fa8e41b995e596c2917a21f7974bc55fd0b8ec75e"
     },
     {
       "path": "src/types/rtc-provider-plugin-descriptor.ts",
@@ -348,7 +348,7 @@
     },
     {
       "path": "src/types/rtc-provider-profile-command.ts",
-      "sha256": "6b24b239d765a2a94ba3009b4e28e5e6d9b76a1aa03a8002f4ac2076f18d8912"
+      "sha256": "9c357c68750192b260cc0d3b0e1d167a0e64f97f184aaa6d64d31a103d588bc2"
     },
     {
       "path": "src/types/rtc-provider-profile-disable-request.ts",
@@ -380,7 +380,7 @@
     },
     {
       "path": "src/types/rtc-provider-profile.ts",
-      "sha256": "8b7ddcc32b8eab3129b81d32c9822b241428073258831f9917a312e691e34dd4"
+      "sha256": "78233580f448edb701245ea621947a3686478567edc91fdc4122b7c02786d010"
     },
     {
       "path": "src/types/rtc-provider-query-job-create-request.ts",

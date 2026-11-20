@@ -609,7 +609,7 @@ export function RtcAdminCenterWorkspace({
               profiles={dashboardData.profiles}
               schemas={dashboardData.schemas}
               onVerify={async (profile) => {
-                await services.profiles.verify(profile.id, "health");
+                await services.profiles.verify(profile.id, "full");
                 await refreshDashboard();
               }}
               onRefresh={() => void refreshDashboard()}
@@ -661,7 +661,7 @@ export function RtcAdminCenterWorkspace({
                 await refresh();
               }}
               onVerify={async (profile) => {
-                await services.profiles.verify(profile.id, "health");
+                await services.profiles.verify(profile.id, "full");
                 await refresh();
               }}
             />

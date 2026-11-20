@@ -1158,7 +1158,7 @@ function buildSchemas() {
         status: { type: "string", enum: ["active", "disabled", "archived"] },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         externalTenantId: { type: ["string", "null"] },
         cloudAccountId: { type: ["string", "null"] },
@@ -1186,7 +1186,7 @@ function buildSchemas() {
         status: { type: "string", enum: ["active", "disabled", "archived"] },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         externalTenantId: { type: ["string", "null"] },
         cloudAccountId: { type: ["string", "null"] },
@@ -1245,7 +1245,7 @@ function buildSchemas() {
         status: { type: "string", enum: ["active", "disabled", "archived"] },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         region: { type: ["string", "null"] },
         providerApplicationId: { type: "string" },
@@ -1287,7 +1287,7 @@ function buildSchemas() {
         status: { type: "string", enum: ["active", "disabled", "archived"] },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         region: { type: ["string", "null"] },
         providerApplicationId: { type: "string" },
@@ -1364,6 +1364,19 @@ function buildSchemas() {
           description:
             "Reference to secret-managed provider credential material. Raw provider secrets are never returned by the RTC API.",
         },
+        credentialKind: {
+          type: ["string", "null"],
+          description:
+            "Secret shape recorded for the credential (for example secret_text or access_key_pair).",
+        },
+        secretConfigured: {
+          type: "boolean",
+          description: "Whether sealed secret material is stored for this credential.",
+        },
+        secretMaskedLabel: {
+          type: ["string", "null"],
+          description: "Non-reversible masked preview of the stored secret.",
+        },
         credentialFingerprint: { type: ["string", "null"] },
         secretVersion: { type: ["string", "null"] },
         status: {
@@ -1401,6 +1414,13 @@ function buildSchemas() {
         },
         credentialLabel: { type: "string" },
         credentialRef: { type: "string" },
+        credentialKind: { type: ["string", "null"] },
+        credentialSecret: {
+          type: ["string", "null"],
+          writeOnly: true,
+          description:
+            "Raw provider secret. Sealed with the deployment master secret before persistence and never returned.",
+        },
         credentialFingerprint: { type: ["string", "null"] },
         secretVersion: { type: ["string", "null"] },
         status: {
@@ -1462,9 +1482,13 @@ function buildSchemas() {
         priority: { type: "integer", minimum: 0 },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         region: { type: ["string", "null"] },
+        providerApplicationId: {
+          type: ["string", "null"],
+          description: "Linked RTC provider application that owns the credential material.",
+        },
         providerAppId: { type: ["string", "null"] },
         endpoint: { type: ["string", "null"], format: "uri" },
         credentialRef: {
@@ -1516,7 +1540,7 @@ function buildSchemas() {
         priority: { type: "integer", minimum: 0 },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         region: { type: ["string", "null"] },
         providerAppId: { type: ["string", "null"] },
@@ -1579,9 +1603,10 @@ function buildSchemas() {
         priority: { type: "integer", minimum: 0, default: 100 },
         environment: {
           type: "string",
-          enum: ["production", "staging", "development", "test", "sandbox"],
+          enum: ["development", "test", "staging", "production", "demo"],
         },
         region: { type: ["string", "null"] },
+        providerApplicationId: { type: ["string", "null"] },
         providerAppId: { type: ["string", "null"] },
         endpoint: { type: ["string", "null"], format: "uri" },
         credentialRef: { type: ["string", "null"] },

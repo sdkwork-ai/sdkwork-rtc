@@ -7,7 +7,7 @@ export interface RtcProviderApplication {
   code: string;
   name: string;
   status: 'active' | 'disabled' | 'archived';
-  environment: 'production' | 'staging' | 'development' | 'test' | 'sandbox';
+  environment: 'development' | 'test' | 'staging' | 'production' | 'demo';
   region?: string | null;
   providerApplicationId: string;
   providerApplicationIdKind: 'volcengine_app_id' | 'tencent_sdk_app_id' | 'provider_application_id';

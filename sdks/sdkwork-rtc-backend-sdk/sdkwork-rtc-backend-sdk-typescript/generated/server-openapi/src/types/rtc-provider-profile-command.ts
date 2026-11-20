@@ -7,8 +7,9 @@ export interface RtcProviderProfileCommand {
   status?: 'active' | 'disabled' | 'archived';
   isDefault?: boolean;
   priority?: number;
-  environment: 'production' | 'staging' | 'development' | 'test' | 'sandbox';
+  environment: 'development' | 'test' | 'staging' | 'production' | 'demo';
   region?: string | null;
+  providerApplicationId?: string | null;
   providerAppId?: string | null;
   endpoint?: string | null;
   credentialRef?: string | null;

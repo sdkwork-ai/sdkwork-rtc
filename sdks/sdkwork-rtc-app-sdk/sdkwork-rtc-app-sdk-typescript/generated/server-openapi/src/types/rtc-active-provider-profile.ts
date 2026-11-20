@@ -7,7 +7,7 @@ export interface RtcActiveProviderProfile {
   name: string;
   isDefault: boolean;
   priority: number;
-  environment: 'production' | 'staging' | 'development' | 'test' | 'sandbox';
+  environment: 'development' | 'test' | 'staging' | 'production' | 'demo';
   region?: string | null;
   providerAppId?: string | null;
   endpoint?: string | null;

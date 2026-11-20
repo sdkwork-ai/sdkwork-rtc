@@ -15,8 +15,10 @@ function initialsOf(name: string | undefined): string {
     return "?";
   }
   const parts = trimmed.split(/\s+/u).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  const first = parts[0];
+  const second = parts[1];
+  if (first && second) {
+    return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase();
   }
   return trimmed.slice(0, 2).toUpperCase();
 }

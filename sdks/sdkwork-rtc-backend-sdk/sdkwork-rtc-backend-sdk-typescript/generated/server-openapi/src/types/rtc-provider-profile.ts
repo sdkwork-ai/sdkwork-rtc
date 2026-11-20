@@ -10,8 +10,10 @@ export interface RtcProviderProfile {
   status: 'active' | 'disabled' | 'archived';
   isDefault: boolean;
   priority: number;
-  environment: 'production' | 'staging' | 'development' | 'test' | 'sandbox';
+  environment: 'development' | 'test' | 'staging' | 'production' | 'demo';
   region?: string | null;
+  /** Linked RTC provider application that owns the credential material. */
+  providerApplicationId?: string | null;
   providerAppId?: string | null;
   endpoint?: string | null;
   /** Reference to secret-managed provider credentials. Raw provider secrets are never returned by the RTC API. */
