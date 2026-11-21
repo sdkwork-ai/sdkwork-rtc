@@ -1642,28 +1642,52 @@ impl RtcProductService {
                     account
                 }
                 Err(RtcProductError::NotFound(_)) => {
-                    let command = RtcProviderAccountCommand {
-                        provider: provider.clone(),
-                        code: account_code.to_string(),
-                        name: schema.display_name.clone(),
-                        status: Some(RtcProviderAccountStatus::Active),
-                        environment: environment.clone(),
-                        external_tenant_id: None,
-                        cloud_account_id: None,
-                        project_id: None,
-                        resource_group_id: None,
+                    // Legacy rows (pre-bootstrap SQL seeds) can hold the same
+                    // tenant+organization+provider+code natural key under a
+                    // non-deterministic id. Adopting them keeps the boot-time
+                    // defaults idempotent instead of tripping the upsert
+                    // conflict guard and failing the router build.
+                    let adopted = {
+                        let state = self.state.lock().expect("rtc product state lock");
+                        state
+                            .provider_accounts
+                            .values()
+                            .find(|account| {
+                                account.tenant_id == tenant_id
+                                    && account.organization_id == organization_id
+                                    && account.provider == *provider
+                                    && account.code == account_code
+                                    && account.deleted_at.is_none()
+                            })
+                            .cloned()
                     };
-                    let account = self
-                        .upsert_provider_account_impl(
-                            tenant_id.clone(),
-                            Some(organization_id.clone()),
-                            actor_id.clone(),
-                            None,
-                            command,
-                        )
-                        .await?;
-                    report.created_accounts += 1;
-                    account
+                    if let Some(account) = adopted {
+                        report.skipped_accounts += 1;
+                        account
+                    } else {
+                        let command = RtcProviderAccountCommand {
+                            provider: provider.clone(),
+                            code: account_code.to_string(),
+                            name: schema.display_name.clone(),
+                            status: Some(RtcProviderAccountStatus::Active),
+                            environment: environment.clone(),
+                            external_tenant_id: None,
+                            cloud_account_id: None,
+                            project_id: None,
+                            resource_group_id: None,
+                        };
+                        let account = self
+                            .upsert_provider_account_impl(
+                                tenant_id.clone(),
+                                Some(organization_id.clone()),
+                                actor_id.clone(),
+                                None,
+                                command,
+                            )
+                            .await?;
+                        report.created_accounts += 1;
+                        account
+                    }
                 }
                 Err(error) => return Err(backend_error_from_product(error)),
             };
@@ -1672,44 +1696,68 @@ impl RtcProductService {
             //    and endpoint defaults from the provider schema.
             let application_code = "default";
             let application_id = provider_application_id_for(account.id.as_str(), application_code);
-            if self
+            let application = match self
                 .get_or_load_provider_application(
                     tenant_id.as_str(),
                     Some(organization_id.as_str()),
                     application_id.as_str(),
                 )
                 .await
-                .is_err()
             {
-                let command = RtcProviderApplicationCommand {
-                    code: application_code.to_string(),
-                    name: format!("{} App", schema.display_name),
-                    status: Some(RtcProviderApplicationStatus::Active),
-                    environment: environment.clone(),
-                    region: region_default.clone(),
-                    provider_application_id: placeholder_application_id.clone(),
-                    provider_application_id_kind: application_id_kind,
-                    access_endpoint: access_endpoint.clone(),
-                    api_endpoint: api_endpoint.clone(),
-                    api_host: api_host.clone(),
-                    api_version: api_version.clone(),
-                    webhook_callback_url: None,
-                    config_snapshot: serde_json::json!({
-                        "source": "provider-defaults-bootstrap",
-                        "adapterStatus": "implemented",
-                    }),
-                };
-                self.upsert_provider_application_impl(
-                    tenant_id.clone(),
-                    Some(organization_id.clone()),
-                    actor_id.clone(),
-                    Some(account.id.clone()),
-                    None,
-                    command,
-                )
-                .await?;
-                report.created_applications += 1;
-            }
+                Ok(application) => application,
+                Err(_) => {
+                    // Same legacy-id adoption as the account step: the
+                    // application natural key is (provider account, code).
+                    let adopted = {
+                        let state = self.state.lock().expect("rtc product state lock");
+                        state
+                            .provider_applications
+                            .values()
+                            .find(|application| {
+                                application.provider_account_id == account.id
+                                    && application.code == application_code
+                                    && application.deleted_at.is_none()
+                            })
+                            .cloned()
+                    };
+                    match adopted {
+                        Some(application) => application,
+                        None => {
+                            let command = RtcProviderApplicationCommand {
+                                code: application_code.to_string(),
+                                name: format!("{} App", schema.display_name),
+                                status: Some(RtcProviderApplicationStatus::Active),
+                                environment: environment.clone(),
+                                region: region_default.clone(),
+                                provider_application_id: placeholder_application_id.clone(),
+                                provider_application_id_kind: application_id_kind,
+                                access_endpoint: access_endpoint.clone(),
+                                api_endpoint: api_endpoint.clone(),
+                                api_host: api_host.clone(),
+                                api_version: api_version.clone(),
+                                webhook_callback_url: None,
+                                config_snapshot: serde_json::json!({
+                                    "source": "provider-defaults-bootstrap",
+                                    "adapterStatus": "implemented",
+                                }),
+                            };
+                            let application = self
+                                .upsert_provider_application_impl(
+                                    tenant_id.clone(),
+                                    Some(organization_id.clone()),
+                                    actor_id.clone(),
+                                    Some(account.id.clone()),
+                                    None,
+                                    command,
+                                )
+                                .await?;
+                            report.created_applications += 1;
+                            application
+                        }
+                    }
+                }
+            };
+            let application_id = application.id;
 
             // 3. Credentials — one placeholder row per schema credential role;
             //    references only, never secret material.
@@ -1741,6 +1789,20 @@ impl RtcProductService {
                     .await
                     .is_ok()
                 {
+                    continue;
+                }
+                // Legacy credential rows may already hold the
+                // (application, role, label) natural key under a
+                // non-deterministic id; skip instead of conflicting.
+                let adopted_credential = {
+                    let state = self.state.lock().expect("rtc product state lock");
+                    state.provider_credentials.values().any(|credential| {
+                        credential.provider_application_id == application_id
+                            && credential.credential_role == role
+                            && credential.credential_label == credential_ref_field.label
+                    })
+                };
+                if adopted_credential {
                     continue;
                 }
                 let command = RtcProviderCredentialCommand {
@@ -1789,12 +1851,32 @@ impl RtcProductService {
                 )
                 .await;
             if profile_ref.is_err() {
-                let signing_role = schema.credential_roles.first().cloned().ok_or_else(|| {
-                    RtcBackendApiError::Unavailable(format!(
-                        "RTC provider schema declares no credential roles for {provider}"
-                    ))
-                })?;
-                let signing_ref = signing_role
+                // Legacy profile rows may already hold the
+                // (tenant, organization, provider, code) natural key under a
+                // non-deterministic id; skip creation (and the fresh route)
+                // instead of conflicting.
+                let adopted_profile = {
+                    let state = self.state.lock().expect("rtc product state lock");
+                    state
+                        .provider_profiles
+                        .values()
+                        .find(|profile| {
+                            profile.tenant_id == tenant_id
+                                && profile.organization_id == organization_id
+                                && profile.provider == *provider
+                                && profile.code == profile_code
+                                && profile.deleted_at.is_none()
+                        })
+                        .cloned()
+                };
+                if adopted_profile.is_none() {
+                    let signing_role =
+                        schema.credential_roles.first().cloned().ok_or_else(|| {
+                            RtcBackendApiError::Unavailable(format!(
+                                "RTC provider schema declares no credential roles for {provider}"
+                            ))
+                        })?;
+                    let signing_ref = signing_role
                     .fields
                     .first()
                     .and_then(|field| field.placeholder.clone())
@@ -1803,65 +1885,66 @@ impl RtcProductService {
                             "RTC provider schema signing role has no credential reference for {provider}"
                         ))
                     })?;
-                let webhook_secret_ref = schema
-                    .credential_roles
-                    .iter()
-                    .find(|role| role.role == "webhook_signing")
-                    .and_then(|role| role.fields.first())
-                    .and_then(|field| field.placeholder.clone());
-                let is_default = default_provider_kind.as_deref() == Some(provider.as_str());
-                let command = RtcProviderProfileCommand {
-                    provider: provider.clone(),
-                    code: profile_code.to_string(),
-                    name: schema.display_name.clone(),
-                    status: Some(RtcProviderProfileStatus::Active),
-                    is_default,
-                    priority: if is_default { 0 } else { 100 },
-                    environment: environment.clone(),
-                    region: region_default.clone(),
-                    provider_application_id: Some(application_id.clone()),
-                    provider_app_id: Some(placeholder_application_id.clone()),
-                    endpoint: access_endpoint.clone(),
-                    credential_ref: Some(signing_ref),
-                    webhook_secret_ref,
-                    capabilities: RtcProviderCapabilitySnapshot::from_plugin_descriptor(
-                        &descriptor,
-                    ),
-                    config_snapshot: serde_json::json!({
-                        "source": "provider-defaults-bootstrap",
-                        "credentialTtlSeconds": 3600,
-                    }),
-                };
-                let profile = self
-                    .upsert_provider_profile_impl(
-                        tenant_id.clone(),
-                        Some(organization_id.clone()),
-                        actor_id.clone(),
-                        None,
-                        command,
-                    )
-                    .await?;
-                report.created_profiles += 1;
-
-                // 5. Route — one region route so the fresh profile is
-                //    immediately selectable through region-based selection.
-                if let Some(region) = region_default.clone() {
-                    let command = RtcProviderRouteCommand {
-                        provider_profile_id: profile.id.clone(),
-                        route_type: RTC_PROVIDER_ROUTE_TYPE_REGION.to_string(),
-                        region: Some(region),
+                    let webhook_secret_ref = schema
+                        .credential_roles
+                        .iter()
+                        .find(|role| role.role == "webhook_signing")
+                        .and_then(|role| role.fields.first())
+                        .and_then(|field| field.placeholder.clone());
+                    let is_default = default_provider_kind.as_deref() == Some(provider.as_str());
+                    let command = RtcProviderProfileCommand {
+                        provider: provider.clone(),
+                        code: profile_code.to_string(),
+                        name: schema.display_name.clone(),
+                        status: Some(RtcProviderProfileStatus::Active),
+                        is_default,
                         priority: if is_default { 0 } else { 100 },
-                        status: Some(RtcProviderRouteStatus::Active),
+                        environment: environment.clone(),
+                        region: region_default.clone(),
+                        provider_application_id: Some(application_id.clone()),
+                        provider_app_id: Some(placeholder_application_id.clone()),
+                        endpoint: access_endpoint.clone(),
+                        credential_ref: Some(signing_ref),
+                        webhook_secret_ref,
+                        capabilities: RtcProviderCapabilitySnapshot::from_plugin_descriptor(
+                            &descriptor,
+                        ),
+                        config_snapshot: serde_json::json!({
+                            "source": "provider-defaults-bootstrap",
+                            "credentialTtlSeconds": 3600,
+                        }),
                     };
-                    RtcBackendApiService::create_provider_route(
-                        self,
-                        tenant_id.clone(),
-                        Some(organization_id.clone()),
-                        actor_id.clone(),
-                        command,
-                    )
-                    .await?;
-                    report.created_routes += 1;
+                    let profile = self
+                        .upsert_provider_profile_impl(
+                            tenant_id.clone(),
+                            Some(organization_id.clone()),
+                            actor_id.clone(),
+                            None,
+                            command,
+                        )
+                        .await?;
+                    report.created_profiles += 1;
+
+                    // 5. Route — one region route so the fresh profile is
+                    //    immediately selectable through region-based selection.
+                    if let Some(region) = region_default.clone() {
+                        let command = RtcProviderRouteCommand {
+                            provider_profile_id: profile.id.clone(),
+                            route_type: RTC_PROVIDER_ROUTE_TYPE_REGION.to_string(),
+                            region: Some(region),
+                            priority: if is_default { 0 } else { 100 },
+                            status: Some(RtcProviderRouteStatus::Active),
+                        };
+                        RtcBackendApiService::create_provider_route(
+                            self,
+                            tenant_id.clone(),
+                            Some(organization_id.clone()),
+                            actor_id.clone(),
+                            command,
+                        )
+                        .await?;
+                        report.created_routes += 1;
+                    }
                 }
             }
         }
