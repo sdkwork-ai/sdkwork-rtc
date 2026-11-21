@@ -94,11 +94,14 @@ async fn ensure_provider_defaults_on_boot(
         return Ok(());
     }
     use sdkwork_routes_rtc_backend_api::service::RtcBackendApiService;
+    // The RTC persistence schema stores created_by/updated_by as BIGINT
+    // (parse_i64_field), so the boot seeding acts as the numeric system actor
+    // "0" — the same convention the SQL seeds use — instead of a kebab label.
     let report = service
         .create_provider_defaults(
             tenant_id.to_string(),
             Some(organization_id.to_string()),
-            "sdkwork-rtc-bootstrap".to_string(),
+            "0".to_string(),
             RtcProviderDefaultsCommand::default(),
         )
         .await
